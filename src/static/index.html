@@ -1,0 +1,31 @@
+<html>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
+  <body>
+    <div class="wallet-container">
+      <a id="connect-wallet">Connect Wallet</a>
+    </div>
+
+    <div id="mint-container" style="text-align: center">
+        <a id="mint-fewer" >&nbsp;-&nbsp;</a>
+        <input id="mint-count" type="number" value="1" />
+        <a id="mint-more">&nbsp;+&nbsp;</a>
+        <a id="mint-now">MINT NOW!</a>
+    </div>
+  </body>
+
+  <script type="text/javascript" src="mint-frontend-bundle.js"></script>
+  <script>
+    mintFrontend.then(mintFrontend => {
+      document.querySelector("#connect-wallet").addEventListener("click", mintFrontend.connectWallet);
+
+      document.querySelector("#mint-fewer").addEventListener("click", mintFrontend.decreaseMintCount);
+      document.querySelector("#mint-more").addEventListener("click", mintFrontend.increaseMintCount);
+
+      document.querySelector("#mint-count").addEventListener("input", mintFrontend.validateMintCount);
+
+      document.querySelector("#mint-now").addEventListener("click", mintFrontend.mintNow);
+    })
+  </script>
+
+</html>

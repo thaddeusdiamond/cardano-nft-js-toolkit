@@ -1,0 +1,26 @@
+{
+  "name": "nami-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Tangz Website",
+  "private": "true",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack"
+  },
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "buffer": "^6.0.3",
+    "copy-webpack-plugin": "^11.0.0",
+    "express": "^4.18.1",
+    "lodash": "^4.17.21",
+    "lucid-cardano": "^0.3.3",
+    "typescript": "^4.7.2"
+  },
+  "devDependencies": {
+    "ts-loader": "^9.3.0",
+    "webpack": "^5.72.1",
+    "webpack-cli": "^4.9.2"
+  }
+}
