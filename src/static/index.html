@@ -23,6 +23,12 @@
             <li class="bordered">
               <a id="connect-flint"><img src="https://flint-wallet.com/favicon.png" width=20 height=20 />&nbsp;&nbsp;Flint</a>
             </li>
+            <li class="bordered">
+              <a id="connect-gero"><img src="https://gerowallet.io/assets/img/logo2.ico" width=20 height=20 />&nbsp;&nbsp;Gero</a>
+            </li>
+            <li class="bordered">
+              <a id="connect-typhon"><img src="https://typhonwallet.io/assets/typhon.svg" width=20 height=20 />&nbsp;&nbsp;Typhon</a>
+            </li>
           </ul>
         </li>
       </ul>
@@ -43,6 +49,8 @@
       document.querySelector("#connect-nami").addEventListener("click", e => mintFrontend.connectWallet(e, 'nami'));
       document.querySelector("#connect-eternl").addEventListener("click", e => mintFrontend.connectWallet(e, 'eternl'));
       document.querySelector("#connect-flint").addEventListener("click", e => mintFrontend.connectWallet(e, 'flint'));
+      document.querySelector("#connect-gero").addEventListener("click", e => mintFrontend.connectWallet(e, 'gerowallet'));
+      document.querySelector("#connect-typhon").addEventListener("click", e => mintFrontend.connectWallet(e, 'typhoncip30'));
 
       document.querySelector("#mint-fewer").addEventListener("click", mintFrontend.decreaseMintCount);
       document.querySelector("#mint-more").addEventListener("click", mintFrontend.increaseMintCount);
