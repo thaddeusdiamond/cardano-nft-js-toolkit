@@ -1,23 +1,48 @@
 <html>
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <head>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+
+    <script type="text/javascript" src="mint-frontend-bundle.js"></script>
+
+    <link rel="stylesheet" href="index.css" />
+  </head>
 
   <body>
-    <div class="wallet-container">
-      <a id="connect-wallet">Connect Wallet</a>
+    <div id="wallet-container" class="container">
+      <ul>
+        <li>
+          <a id="connect-wallet" class="bordered">Connect Wallet&nbsp;&#9660;</a>
+          <ul class="dropdown">
+            <li class="bordered">
+              <a id="connect-nami"><img src="https://namiwallet.io/favicon-32x32.png" width=20 height=20 />&nbsp;&nbsp;Nami</a>
+            </li>
+            <li class="bordered">
+              <a id="connect-eternl"><img src="https://ccvault.io/icons/favicon-128x128.png" width=20 height=20/>&nbsp;&nbsp;Eternl</a>
+            </li>
+            <li class="bordered">
+              <a id="connect-flint"><img src="https://flint-wallet.com/favicon.png" width=20 height=20 />&nbsp;&nbsp;Flint</a>
+            </li>
+          </ul>
+        </li>
+      </ul>
     </div>
 
-    <div id="mint-container" style="text-align: center">
-        <a id="mint-fewer" >&nbsp;-&nbsp;</a>
+    <div id="mint-container" class="container">
+        <a id="mint-fewer" class="bordered padded">-</a>
         <input id="mint-count" type="number" value="1" />
-        <a id="mint-more">&nbsp;+&nbsp;</a>
-        <a id="mint-now">MINT NOW!</a>
+        <a id="mint-more" class="bordered padded">+</a>
+        <a id="mint-now" class="bordered padded">MINT NOW!</a>
     </div>
   </body>
 
-  <script type="text/javascript" src="mint-frontend-bundle.js"></script>
   <script>
     mintFrontend.then(mintFrontend => {
-      document.querySelector("#connect-wallet").addEventListener("click", mintFrontend.connectWallet);
+      mintFrontend.setConnectedBannerEl('#connect-wallet');
+
+      document.querySelector("#connect-nami").addEventListener("click", e => mintFrontend.connectWallet(e, 'nami'));
+      document.querySelector("#connect-eternl").addEventListener("click", e => mintFrontend.connectWallet(e, 'eternl'));
+      document.querySelector("#connect-flint").addEventListener("click", e => mintFrontend.connectWallet(e, 'flint'));
 
       document.querySelector("#mint-fewer").addEventListener("click", mintFrontend.decreaseMintCount);
       document.querySelector("#mint-more").addEventListener("click", mintFrontend.increaseMintCount);

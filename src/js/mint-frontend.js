@@ -4,11 +4,33 @@ import {Lucid, Blockfrost} from "lucid-cardano";
 const MAINNET = 1;
 const TESTNET = 0;
 
-function checkBrowserWallet() {
-  // TODO: Multi-wallet support
-  if (!(("cardano" in window) && ('nami' in window.cardano))) {
+var SelectedWallet = undefined;
+var ConnectedBannerEl = undefined;
+
+function getConnectedWallet() {
+  return SelectedWallet;
+}
+
+function setConnectedWallet(walletName) {
+  SelectedWallet = walletName;
+}
+
+function getConnectedBannerEl() {
+  return ConnectedBannerEl;
+}
+
+export function setConnectedBannerEl(element) {
+  ConnectedBannerEl = element;
+}
+
+function isWalletConnected() {
+  return SelectedWallet !== undefined;
+}
+
+function isWalletSupported(walletName) {
+  if (!(("cardano" in window) && (walletName in window.cardano))) {
     Toastify({
-      text: "Nami integration not found on your browser.",
+      text: `Wallet '${walletName}' not integrated in your browser`,
       duration: 3000
     }).showToast();
     return false;
@@ -16,13 +38,21 @@ function checkBrowserWallet() {
   return true;
 }
 
-function enableWallet() {
-  // TODO: Multi-wallet support
-  return window.cardano.nami.enable();
+function enableWallet(walletName) {
+  return window.cardano[walletName].enable();
+}
+
+function displayWallet() {
+  if (isWalletConnected() && getConnectedBannerEl()) {
+    document.querySelector(getConnectedBannerEl()).textContent = `Connected to ${getConnectedWallet()}!`;
+  }
 }
 
 function getNetworkId() {
-  return enableWallet().then(wallet => {
+  if (!isWalletConnected()) {
+    return undefined;
+  }
+  return enableWallet(getConnectedWallet()).then(wallet => {
     return wallet.getNetworkId().then(networkId => {
       if (networkId != MAINNET && networkId != TESTNET) {
           Toastify({
@@ -37,7 +67,7 @@ function getNetworkId() {
 }
 
 function getLucidInstance() {
-  if (!checkBrowserWallet()) {
+  if (!isWalletConnected()) {
     console.log("Cannot initialize Lucid without knowing network and no wallets detected");
     return;
   }
@@ -67,19 +97,21 @@ function toastWalletError(error) {
     }).showToast()
 }
 
-export function connectWallet(e) {
+export function connectWallet(e, walletName) {
   e.preventDefault();
-  if (!checkBrowserWallet()) {
+  if (!isWalletSupported(walletName)) {
     return;
   }
 
-  enableWallet().then(wallet =>
-    wallet.getChangeAddress().then(address =>
+  enableWallet(walletName).then(wallet =>
+    wallet.getChangeAddress().then(address => {
+      setConnectedWallet(walletName);
+      displayWallet();
       Toastify({
           text: `Successfully connected wallet ${address}!`,
           duration: 3000
-      }).showToast()
-    )
+      }).showToast();
+    })
   ).catch(toastWalletError);
 }
 
@@ -117,11 +149,15 @@ function getPaymentAddress() {
 
 export function mintNow(e) {
   e.preventDefault();
-  if (!checkBrowserWallet()) {
+  if (!isWalletConnected()) {
+    Toastify({
+        text: `Please connect a wallet before minting using "Connect Wallet" button (desktop only)`,
+        duration: 3000
+    }).showToast()
     return;
   }
 
-  enableWallet().then(wallet => {
+  enableWallet(getConnectedWallet()).then(wallet => {
     getLucidInstance().then(lucid => {
       getPaymentAddress().then(paymentAddress => {
           lucid.selectWallet(wallet);

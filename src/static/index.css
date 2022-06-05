@@ -1,0 +1,47 @@
+/** Dropdown constraints for the unordered list **/
+ul {
+    padding: 0;
+    list-style: none;
+}
+ul li {
+    display: inline-block;
+    position: relative;
+    line-height: 21px;
+    text-align: left;
+}
+ul li a {
+    display: block;
+    padding: 8px 25px;
+    text-decoration: none;
+    background: #ffffff;
+}
+ul li a:hover {
+    color: #fff;
+    background: #939393;
+}
+ul li ul.dropdown {
+    min-width: 100%;
+    display: none;
+    position: absolute;
+    z-index: 999;
+    left: 0;
+}
+ul li:hover ul.dropdown {
+    display: block;
+}
+ul li ul.dropdown li {
+    display: block;
+}
+
+/** Utility classes with some minimal styling **/
+.container {
+  text-align: center;
+}
+
+.bordered {
+  border: 1px solid;
+}
+
+.padded {
+  padding: 5px;
+}
