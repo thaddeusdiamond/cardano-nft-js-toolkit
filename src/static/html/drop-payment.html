@@ -1,0 +1,35 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+
+    <script type="text/javascript" src="nft-toolkit.js"></script>
+    <link rel="stylesheet" href="drop-payment.css" />
+  </head>
+
+  <body>
+    <div id="wallet-container" class="container"></div>
+
+    <div id="mint-container" class="container">
+        <a id="mint-fewer" class="bordered padded noselect pointer">-</a>
+        <input id="mint-count" type="number" value="1" />
+        <a id="mint-more" class="bordered padded noselect pointer">+</a>
+        <a id="mint-now" class="bordered padded noselect pointer">MINT NOW!</a>
+    </div>
+  </body>
+
+  <script>
+    NftToolkit.then(NftToolkit => {
+      NftToolkit.WalletSelector.buildDropdownDom("#wallet-container");
+      NftToolkit.WalletSelector.configureDropdownListeners();
+
+      document.querySelector("#mint-fewer").addEventListener("click", NftToolkit.DropPayment.decreaseMintCount);
+      document.querySelector("#mint-more").addEventListener("click", NftToolkit.DropPayment.increaseMintCount);
+
+      document.querySelector("#mint-count").addEventListener("input", NftToolkit.DropPayment.validateMintCount);
+
+      document.querySelector("#mint-now").addEventListener("click", NftToolkit.DropPayment.mintNow);
+    })
+  </script>
+
+</html>

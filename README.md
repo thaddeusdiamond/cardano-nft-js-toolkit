@@ -1,4 +1,4 @@
-# cardano-nft-mint-frontend
+# cardano-nft-js-toolkit
 
 ### This package provides a simple example of how to use [Lucid](https://github.com/Berry-Pool/lucid) to build a frontend dApp for NFT minting
 
@@ -10,7 +10,7 @@ Prerequisites:
 * [npm](https://www.npmjs.com/package/npm)>=8.12.0
 * [static-server](https://www.npmjs.com/package/static-server)>=2.2.1 (for local serving)
 
-You must update your secrets in a root file called `src/js/mint-secrets.js`. The file should contain the following format:
+You must update your secrets in a root file called `src/js/secrets.js`. The file should contain the following format:
 
     export const MAIN_PAYMENT_ADDR = "<PAYMENT_ADDR_MAINNET>"
     export const MAIN_BLOCKFROST_PROJ = "<MAINNET_BLOCKFROST_PROJ>"
@@ -23,11 +23,11 @@ You must update your secrets in a root file called `src/js/mint-secrets.js`. The
 
 :warning: DO NOT COMMIT SECRETS TO THIS REPOSITORY!!
 
-The sample module in ``src/js/mint-frontend.js`` contains functions that are bound to the DOM in ``src/static/index.html``. To build the required JS modules into a single webpack JS, run:
+The sample module in ``src/js/tools/drop-payment.js`` contains functions that are bound to the DOM in ``src/static/drop-payment.html``. To build the required JS modules into a single webpack JS, run:
 
     npm run build
 
-Then, serve the ``src/static/index.html`` using a web application server you prefer.  We recommend (for quickstarts, not production), [static-server]().  To install this, run:
+Then, serve the ``src/static/drop-payment.html`` using a web application server you prefer.  We recommend (for quickstarts, not production), [static-server]().  To install this, run:
 
     npm i static-server
 

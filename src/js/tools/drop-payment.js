@@ -1,60 +1,14 @@
-import * as secrets from "./mint-secrets.js";
+import * as Secrets from "../secrets.js";
+import * as Selector from "./wallet-selector.js";
 import {Lucid, Blockfrost} from "lucid-cardano";
 
-const MAINNET = 1;
-const TESTNET = 0;
-
-var SelectedWallet = undefined;
-var ConnectedBannerEl = undefined;
-
-function getConnectedWallet() {
-  return SelectedWallet;
-}
-
-function setConnectedWallet(walletName) {
-  SelectedWallet = walletName;
-}
-
-function getConnectedBannerEl() {
-  return ConnectedBannerEl;
-}
-
-export function setConnectedBannerEl(element) {
-  ConnectedBannerEl = element;
-}
-
-function isWalletConnected() {
-  return SelectedWallet !== undefined;
-}
-
-function isWalletSupported(walletName) {
-  if (!(("cardano" in window) && (walletName in window.cardano))) {
-    Toastify({
-      text: `Wallet '${walletName}' not integrated in your browser`,
-      duration: 3000
-    }).showToast();
-    return false;
-  }
-  return true;
-}
-
-function enableWallet(walletName) {
-  return window.cardano[walletName].enable();
-}
-
-function displayWallet() {
-  if (isWalletConnected() && getConnectedBannerEl()) {
-    document.querySelector(getConnectedBannerEl()).textContent = `Connected to ${getConnectedWallet()}!`;
-  }
-}
-
 function getNetworkId() {
-  if (!isWalletConnected()) {
+  if (!Selector.isWalletConnected()) {
     return undefined;
   }
-  return enableWallet(getConnectedWallet()).then(wallet => {
+  return Selector.enableWallet(Selector.getConnectedWallet()).then(wallet => {
     return wallet.getNetworkId().then(networkId => {
-      if (networkId != MAINNET && networkId != TESTNET) {
+      if (networkId != Selector.MAINNET && networkId != Selector.TESTNET) {
           Toastify({
             text: `Invalid networkId ${networkId} detected`,
             duration: 5000
@@ -67,20 +21,20 @@ function getNetworkId() {
 }
 
 function getLucidInstance() {
-  if (!isWalletConnected()) {
+  if (!Selector.isWalletConnected()) {
     console.log("Cannot initialize Lucid without knowing network and no wallets detected");
     return;
   }
 
   return getNetworkId().then(networkId => {
     var lucidParams = {}
-    if (networkId == MAINNET) {
+    if (networkId == Selector.MAINNET) {
         lucidParams.api = 'https://cardano-mainnet.blockfrost.io/api/v0'
-        lucidParams.project = secrets.MAIN_BLOCKFROST_PROJ
+        lucidParams.project = Secrets.MAIN_BLOCKFROST_PROJ
         lucidParams.network = 'Mainnet'
-    } else if (networkId == TESTNET) {
+    } else if (networkId == Selector.TESTNET) {
         lucidParams.api = 'https://cardano-testnet.blockfrost.io/api/v0'
-        lucidParams.project = secrets.TEST_BLOCKFROST_PROJ
+        lucidParams.project = Secrets.TEST_BLOCKFROST_PROJ
         lucidParams.network = 'Testnet'
     }
     return Lucid.new(
@@ -90,33 +44,8 @@ function getLucidInstance() {
   })
 }
 
-function toastWalletError(error) {
-    Toastify({
-      text: `Wallet error occurred: ${JSON.stringify(error)}`,
-      duration: 3000
-    }).showToast()
-}
-
-export function connectWallet(e, walletName) {
-  e.preventDefault();
-  if (!isWalletSupported(walletName)) {
-    return;
-  }
-
-  enableWallet(walletName).then(wallet =>
-    wallet.getChangeAddress().then(address => {
-      setConnectedWallet(walletName);
-      displayWallet();
-      Toastify({
-          text: `Successfully connected wallet ${address}!`,
-          duration: 3000
-      }).showToast();
-    })
-  ).catch(toastWalletError);
-}
-
 function updateMintCount(count) {
-  var boundedCount = Math.max(secrets.LOWER_LIMIT, Math.min(secrets.UPPER_LIMIT, count));
+  var boundedCount = Math.max(Secrets.LOWER_LIMIT, Math.min(Secrets.UPPER_LIMIT, count));
   document.querySelector("#mint-count").value = boundedCount
 }
 
@@ -140,16 +69,23 @@ export function validateMintCount(e) {
 
 function getPaymentAddress() {
   return getNetworkId().then(networkId => {
-    if (networkId == MAINNET) {
-      return secrets.MAIN_PAYMENT_ADDR;
+    if (networkId == Selector.MAINNET) {
+      return Secrets.MAIN_PAYMENT_ADDR;
     }
-    return secrets.TEST_PAYMENT_ADDR;
+    return Secrets.TEST_PAYMENT_ADDR;
   });
+}
+
+function toastTransactionError(error) {
+    Toastify({
+      text: `Transaction error occurred: ${JSON.stringify(error)}`,
+      duration: 3000
+    }).showToast()
 }
 
 export function mintNow(e) {
   e.preventDefault();
-  if (!isWalletConnected()) {
+  if (!Selector.isWalletConnected()) {
     Toastify({
         text: `Please connect a wallet before minting using "Connect Wallet" button (desktop only)`,
         duration: 3000
@@ -157,11 +93,11 @@ export function mintNow(e) {
     return;
   }
 
-  enableWallet(getConnectedWallet()).then(wallet => {
+  Selector.enableWallet(Selector.getConnectedWallet()).then(wallet => {
     getLucidInstance().then(lucid => {
       getPaymentAddress().then(paymentAddress => {
           lucid.selectWallet(wallet);
-          var paymentAmount =  (getCurrentCount() * secrets.MINT_PRICE) + secrets.MINT_REBATE;
+          var paymentAmount =  (getCurrentCount() * Secrets.MINT_PRICE) + Secrets.MINT_REBATE;
           const tx = lucid.newTx()
                           .payToAddress(paymentAddress, { lovelace: paymentAmount })
                           .complete()
@@ -175,7 +111,7 @@ export function mintNow(e) {
                                 )
                               )
                           )
-                          .catch(toastWalletError);
+                          .catch(toastTransactionError);
       });
     });
   });

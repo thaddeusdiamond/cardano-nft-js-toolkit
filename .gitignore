@@ -130,4 +130,4 @@ dist
 .pnp.*
 
 # Secrets related to your specific Mint/project
-src/js/mint-secrets.js
+src/js/secrets.js

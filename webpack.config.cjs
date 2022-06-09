@@ -4,7 +4,7 @@ const webpack = require('webpack');
 
 module.exports = {
   context: path.join(__dirname, 'src'),
-  entry: './js/mint-frontend.js',
+  entry: './js/library.js',
 
   experiments: {
     asyncWebAssembly: true,
@@ -13,8 +13,8 @@ module.exports = {
   },
 
   output: {
-    filename: 'mint-frontend-bundle.js',
-    library: 'mintFrontend'
+    filename: 'nft-toolkit.js',
+    library: 'NftToolkit'
   },
 
   plugins: [
@@ -29,7 +29,7 @@ module.exports = {
 
         new copyplugin({
           patterns: [
-            { from: 'static' }
+            { from: 'static/**/*', to: '[name][ext]' }
           ]
         }),
 
