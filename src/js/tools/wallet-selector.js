@@ -73,7 +73,7 @@ function toastWalletError(error) {
 export function buildDropdownDom(containerEl) {
   document.querySelector(containerEl).innerHTML = `<ul>
     <li>
-      <a id="connect-wallet" class="bordered">Connect Wallet&nbsp;&#9660;</a>
+      <a id="connect-wallet" class="text-reset bordered">Connect Wallet&nbsp;&#9660;</a>
       <ul class="dropdown">
         <li class="bordered">
           <a id="connect-nami"><img src="https://namiwallet.io/favicon-32x32.png" width=20 height=20 />&nbsp;&nbsp;Nami</a>

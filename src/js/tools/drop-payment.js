@@ -1,48 +1,6 @@
 import * as Secrets from "../secrets.js";
 import * as Selector from "./wallet-selector.js";
-import {Lucid, Blockfrost} from "lucid-cardano";
-
-function getNetworkId() {
-  if (!Selector.isWalletConnected()) {
-    return undefined;
-  }
-  return Selector.enableWallet(Selector.getConnectedWallet()).then(wallet => {
-    return wallet.getNetworkId().then(networkId => {
-      if (networkId != Selector.MAINNET && networkId != Selector.TESTNET) {
-          Toastify({
-            text: `Invalid networkId ${networkId} detected`,
-            duration: 5000
-          }).showToast();
-          return;
-      }
-      return networkId;
-    });
-  });
-}
-
-function getLucidInstance() {
-  if (!Selector.isWalletConnected()) {
-    console.log("Cannot initialize Lucid without knowing network and no wallets detected");
-    return;
-  }
-
-  return getNetworkId().then(networkId => {
-    var lucidParams = {}
-    if (networkId == Selector.MAINNET) {
-        lucidParams.api = 'https://cardano-mainnet.blockfrost.io/api/v0'
-        lucidParams.project = Secrets.MAIN_BLOCKFROST_PROJ
-        lucidParams.network = 'Mainnet'
-    } else if (networkId == Selector.TESTNET) {
-        lucidParams.api = 'https://cardano-testnet.blockfrost.io/api/v0'
-        lucidParams.project = Secrets.TEST_BLOCKFROST_PROJ
-        lucidParams.network = 'Testnet'
-    }
-    return Lucid.new(
-      new Blockfrost(lucidParams.api, lucidParams.project),
-      lucidParams.network
-    );
-  })
-}
+import * as LucidInst from "./lucid-inst.js";
 
 function updateMintCount(count) {
   var boundedCount = Math.max(Secrets.LOWER_LIMIT, Math.min(Secrets.UPPER_LIMIT, count));
@@ -68,7 +26,7 @@ export function validateMintCount(e) {
 }
 
 function getPaymentAddress() {
-  return getNetworkId().then(networkId => {
+  return LucidInst.getNetworkId().then(networkId => {
     if (networkId == Selector.MAINNET) {
       return Secrets.MAIN_PAYMENT_ADDR;
     }
@@ -94,7 +52,7 @@ export function mintNow(e) {
   }
 
   Selector.enableWallet(Selector.getConnectedWallet()).then(wallet => {
-    getLucidInstance().then(lucid => {
+    LucidInst.getLucidInstance(Secrets.MAIN_BLOCKFROST_PROJ, Secrets.TEST_BLOCKFROST_PROJ).then(lucid => {
       getPaymentAddress().then(paymentAddress => {
           lucid.selectWallet(wallet);
           var paymentAmount =  (getCurrentCount() * Secrets.MINT_PRICE) + Secrets.MINT_REBATE;
