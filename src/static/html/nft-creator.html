@@ -1,0 +1,115 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.6/dist/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.2.1/dist/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+
+    <script type="text/javascript" src="nft-toolkit.js"></script>
+    <link rel="stylesheet" href="nft-creator.css" />
+  </head>
+
+  <body>
+    <div id="wallet-container" class="container"></div>
+
+    <div id="nft-container" class="container text-start align-items-start">
+      <form id="nft-creator-form" autocomplete="on" novalidate disabled>
+        <div class="row">
+          <div class="col-2">
+            <h4>NFT.Storage Key</h4>
+          </div>
+          <div class="col-10">
+            <input id="nft-storage-key" class="col-10" type="text" placeholder="Please get one from https://nft.storage"/>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-2">
+            <h4>Blockfrost API Key</h4>
+          </div>
+          <div class="col-10">
+            <input id="blockfrost-api-key" class="col-10" type="text" placeholder="Please get one from https://blockfrost.io"/>
+          </div>
+        </div>
+        <div class="row mb-2">
+          <div id="nft-key-buttons" class="row">
+            <input id="nft-policy-create" class="col-4 offset-1" type="submit" value="Generate New NFT Policy and Keys">
+            <input id="nft-policy-exists" class="col-4 offset-2" type="submit" value="Enter An Existing NFT Key and Slot">
+          </div>
+          <div id="nft-key-display" class="row"></div>
+        </div>
+        <div class="row bordered p-3">
+          <div class="col-4 text-center">
+            <div class="row">
+              <h4>NFT Name</h4>
+              <input id="nft-name" type="text" placeholder="Give your NFT a name!" disabled>
+            </div>
+            <div class="row mt-3">
+              <h4>File Uploader</h4>
+              <input id="nft-file-selector" class="form-control mb-2" type="file" disabled>
+              <input id="nft-file-upload" type="submit" value="Upload NFT File Attachment" disabled>
+            </div>
+          </div>
+          <div class="col-8">
+            <div class="row">
+              <h4 class="col-2">IPFS Path</h4>
+              <span id="nft-ipfs-display" class="col-10">(Click upload button below file uploader to fill this in...)</span>
+            </div>
+            <div class="row mb-1">
+              <div class="col-4"><input type="text" id="nft-trait-name-1" placeholder="Trait 1 Name..." class="col-12" disabled/></div>
+              <div class="col-8"><input type="text" id="nft-trait-value-1" placeholder="Trait 1 Value..." class="col-12" disabled/></div>
+            </div>
+            <div class="row mb-1">
+              <div class="col-4"><input type="text" id="nft-trait-name-2" placeholder="Trait 2 Name..." class="col-12" disabled/></div>
+              <div class="col-8"><input type="text" id="nft-trait-value-2" placeholder="Trait 2 Value..." class="col-12" disabled/></div>
+            </div>
+            <div class="row mb-1">
+              <div class="col-4"><input type="text" id="nft-trait-name-3" placeholder="Trait 3 Name..." class="col-12" disabled/></div>
+              <div class="col-8"><input type="text" id="nft-trait-value-3" placeholder="Trait 3 Value..." class="col-12" disabled/></div>
+            </div>
+            <div class="row mb-1">
+              <div class="col-4"><input type="text" id="nft-trait-name-4" placeholder="Trait 4 Name..." class="col-12" disabled/></div>
+              <div class="col-8"><input type="text" id="nft-trait-value-4" placeholder="Trait 4 Value..." class="col-12" disabled/></div>
+            </div>
+            <div class="row mb-1">
+              <div class="col-4"><input type="text" id="nft-trait-name-5" placeholder="Trait 5 Name..." class="col-12" disabled/></div>
+              <div class="col-8"><input type="text" id="nft-trait-value-5" placeholder="Trait 5 Value..." class="col-12" disabled/></div>
+            </div>
+            <div class="row mb-1">
+              <div class="col-4"><input type="text" id="nft-trait-name-6" placeholder="Trait 6 Name..." class="col-12" disabled/></div>
+              <div class="col-8"><input type="text" id="nft-trait-value-6" placeholder="Trait 6 Value..." class="col-12" disabled/></div>
+            </div>
+            <div class="row mb-1">
+              <div class="col-4"><input type="text" id="nft-trait-name-7" placeholder="Trait 7 Name..." class="col-12" disabled/></div>
+              <div class="col-8"><input type="text" id="nft-trait-value-7" placeholder="Trait 7 Value..." class="col-12" disabled/></div>
+            </div>
+            <div class="row mb-1">
+              <div class="col-4"><input type="text" id="nft-trait-name-8" placeholder="Trait 8 Name..." class="col-12" disabled/></div>
+              <div class="col-8"><input type="text" id="nft-trait-value-8" placeholder="Trait 8 Value..." class="col-12" disabled/></div>
+            </div>
+            <div class="row text-center">
+              <input id="nft-mint-item" type="submit" value="Mint Now!" class="offset-4 col-4" disabled>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </body>
+
+  <script>
+    NftToolkit.then(NftToolkit => {
+      NftToolkit.WalletSelector.buildDropdownDom("#wallet-container");
+      NftToolkit.WalletSelector.configureDropdownListeners();
+
+      document.querySelector("#nft-policy-create").addEventListener("click", e => NftToolkit.NftCreator.generatePolicyScriptAndKey(e, '#nft-creator-form', '#blockfrost-api-key', 'nft-policy-key', 'expiration-datetime', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', ''));
+      document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#nft-creator-form', 'nft-policy-key', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', 'col-3 offset-2'));
+
+      document.querySelector("#nft-file-upload").addEventListener("click", e => NftToolkit.NftCreator.uploadToIpfs(e, '#nft-storage-key', '#nft-file-selector', '#nft-ipfs-display'));
+
+      document.querySelector("#nft-mint-item").addEventListener("click", e => NftToolkit.NftCreator.performMintTxn(e, '#blockfrost-api-key', '#nft-name', '#expiration-datetime', '#nft-policy-slot', '#nft-policy-key', '#nft-ipfs-display', '#nft-file-selector', '#nft-trait', 8));
+    })
+  </script>
+
+</html>

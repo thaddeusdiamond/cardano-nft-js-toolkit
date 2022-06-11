@@ -2,6 +2,8 @@ import {Lucid, Blockfrost} from "lucid-cardano";
 
 import * as Selector from "./wallet-selector.js";
 
+const lucidNetworkNames = ['Testnet', 'Mainnet'];
+
 export function getNetworkId() {
   if (!Selector.isWalletConnected()) {
     return undefined;
@@ -30,13 +32,18 @@ export function getLucidInstance(blockfrostMain, blockfrostTest) {
     var lucidParams = {}
     if (networkId == Selector.MAINNET) {
         lucidParams.api = 'https://cardano-mainnet.blockfrost.io/api/v0'
-        lucidParams.project = BlockfrostMain
+        lucidParams.project = blockfrostMain
         lucidParams.network = 'Mainnet'
     } else if (networkId == Selector.TESTNET) {
         lucidParams.api = 'https://cardano-testnet.blockfrost.io/api/v0'
         lucidParams.project = blockfrostTest
         lucidParams.network = 'Testnet'
     }
+
+    if (!lucidParams.project.startsWith(lucidNetworkNames[networkId].toLowerCase())) {
+      return undefined;
+    }
+
     return Lucid.new(
       new Blockfrost(lucidParams.api, lucidParams.project),
       lucidParams.network
