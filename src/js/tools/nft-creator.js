@@ -16,6 +16,14 @@ const METADATA_KEY = '721';
 const SPAN_TYPE = 'SPAN';
 const VALUE_SUFFIX = 'value';
 
+function shortToast(message) {
+  Toastify({text: message, duration: 3000}).showToast();
+}
+
+function longToast(message) {
+  Toastify({text: message, duration: 6000}).showToast();
+}
+
 function toastMintError(error) {
   var message = error;
   if (typeof error === Object && 'message' in error) {
@@ -23,18 +31,7 @@ function toastMintError(error) {
   } else if (typeof error === Object || typeof error === 'object') {
     message = JSON.stringify(error);
   }
-  Toastify({
-    text: `Minting error occurred: ${message}`,
-    duration: 3000
-  }).showToast()
-}
-
-function shortToast(message) {
-  Toastify({text: message, duration: 3000}).showToast();
-}
-
-function longToast(message) {
-  Toastify({text: message, duration: 6000}).showToast();
+  longToast(`Minting error occurred: ${message}`);
 }
 
 function privateKeyToCbor(privateKey) {
