@@ -51,7 +51,7 @@ export function enableRecursively(domElement) {
 }
 
 export function generatePolicyScriptAndKey(e, policyAckDom, blockfrostDom, privKeyId, datetimeId, slotId, buttonsDom, displayDom, headerClassName, containerClassName) {
-  e.preventDefault();
+  e && e.preventDefault();
 
   var privateKey = privateKeyToCbor(LCore.PrivateKey.generate_ed25519());
 
@@ -74,7 +74,7 @@ export function generatePolicyScriptAndKey(e, policyAckDom, blockfrostDom, privK
   datetimeLocal.id = datetimeId;
   datetimeLocal.type = 'datetime-local';
   datetimeContainer.append(datetimeHeader, datetimeLocal);
-  datetimeLocal.addEventListener('change', e => updateDatetimeSlotSpan(e, blockfrostDom, `#${slotId}`));
+  datetimeLocal.addEventListener('change', e => updateDatetimeSlotSpan(e, blockfrostDom, `#${datetimeId}`, `#${slotId}`));
 
   var slotContainer = document.createElement('div');
   slotContainer.className = containerClassName;
@@ -94,7 +94,7 @@ export function generatePolicyScriptAndKey(e, policyAckDom, blockfrostDom, privK
   document.querySelector(policyAckDom).style.display = 'block';
 }
 
-function updateDatetimeSlotSpan(e, blockfrostDom, slotDom) {
+function updateDatetimeSlotSpan(e, blockfrostDom, datePickerDom, slotDisplayDom) {
   var blockfrostKey = document.querySelector(blockfrostDom).value;
   if (!blockfrostKey) {
     shortToast('Slot value needs Blockfrost key to be computed');
@@ -107,15 +107,30 @@ function updateDatetimeSlotSpan(e, blockfrostDom, slotDom) {
     return;
   }
 
-  lucidPromise.then(lucid => {
-    var datePicker = e.target.value;
-    var unixTimestamp = Date.parse(datePicker);
-    document.querySelector(slotDom).textContent = lucid.utils.unixTimeToSlot(unixTimestamp);
+  return lucidPromise.then(lucid => {
+    var slotInput = document.querySelector(slotDisplayDom)?.value;
+    if (slotInput) {
+      var slotNum = parseInt(slotInput);
+      if (isNaN(slotNum)) {
+        throw `Could not parse ${slotInput}`;
+      }
+      return slotNum;
+    }
+
+    var datetimeStr = document.querySelector(datePickerDom)?.value;
+    if (datetimeStr) {
+      var unixTimestamp = Date.parse(datetimeStr);
+      var policyExpirationSlot = lucid.utils.unixTimeToSlot(unixTimestamp);
+      document.querySelector(slotDisplayDom).textContent = policyExpirationSlot;
+      return policyExpirationSlot;
+    }
+
+    return undefined;
   });
 }
 
 export function showInputForExistingKey(e, formDom, policyKeyId, policySlotId, buttonsDom, displayDom, classNames) {
-  e.preventDefault();
+  e && e.preventDefault();
 
   document.querySelector(buttonsDom).style.display = 'none';
   document.querySelector(displayDom).replaceChildren(
@@ -136,14 +151,14 @@ function createTextInput(id, cssClass, placeholder) {
 }
 
 export function handlePolicyAcknowledgement(e, policyAckDom, formDom){
-  e.preventDefault();
+  e && e.preventDefault();
   enableRecursively(document.querySelector(formDom));
   document.querySelector(policyAckDom).style.display = 'none';
 }
 
 
 export function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
-  e.preventDefault();
+  e && e.preventDefault();
 
   var ipfsDisplay = document.querySelector(ipfsDisplayDom);
   var existingIpfsDisplay = ipfsDisplay.innerHTML;
@@ -177,7 +192,7 @@ export function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
 }
 
 export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numTraits) {
-  e.preventDefault();
+  e && e.preventDefault();
 
   var blockfrostKey = document.querySelector(blockfrostDom).value;
   if (!blockfrostKey) {
@@ -190,80 +205,87 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
     return;
   }
 
-  Selector.enableWallet(Selector.getConnectedWallet()).then(wallet => {
-    LucidInst.getLucidInstance(blockfrostKey, blockfrostKey).then(lucid => {
-      if (lucid === undefined) {
-        longToast('Your blockfrost key does not match the network of your wallet.');
-        return;
-      }
+  var updateDatetimePromise = updateDatetimeSlotSpan(undefined, blockfrostDom, datetimeDom, slotDom);
+  if (!updateDatetimePromise) {
+    // Message already displayed in the nested call
+    return;
+  }
 
-      if (lucid.network !== 'Testnet') {
-        longToast('Mainnet not supported yet, please switch wallet network.');
-        return;
-      }
-
-      var nftName = document.querySelector(nameDom).value;
-      if (!nftName) {
-        shortToast('Please enter a name for NFT in the text box!');
-        return;
-      }
-
-      var scriptSKeyText = getFromInputOrSpan(scriptSKeyDom);
-      if (!scriptSKeyText) {
-        shortToast('Must either generate or enter a valid secret key before proceeding');
-        return;
-      }
-
-      try {
-        var scriptSKey = privateKeyFromCbor(scriptSKeyText);
-      } catch (error) {
-        shortToast(`Could not construct private key from '${scriptSKeyText}': ${error}`);
-        return;
-      }
-      var scriptVKey = scriptSKey.to_public();
-      var policyKeyHash = toHex(scriptVKey.hash().to_bytes());
-
-      var fileEl = document.querySelector(fileDom);
-      var fileNameEl = document.querySelector(`#${FILENAME_ID}`);
-      if (fileEl.files.length > 0 && fileEl.files[0].name != fileNameEl?.textContent) {
-        if (!confirm('The file you selected has not been uploaded yet, proceed?')) {
+  updateDatetimePromise.then(policyExpirationSlot => {
+    Selector.enableWallet(Selector.getConnectedWallet()).then(wallet => {
+      LucidInst.getLucidInstance(blockfrostKey, blockfrostKey).then(lucid => {
+        if (lucid === undefined) {
+          longToast('Your blockfrost key does not match the network of your wallet.');
           return;
         }
-      }
 
-      var policyExpirationSlot = getFromInputOrSpan(slotDom);
-      var mintingPolicy = undefined;
-      if (policyExpirationSlot) {
-        mintingPolicy = getMintingPolicyFor(policyKeyHash, policyExpirationSlot);
-      } else {
-        mintingPolicy = getSigNativeScriptFor(policyKeyHash);
-      }
-
-      // TODO: Support multiple assets (nftName and metadata will break here!)
-      var nftMetadata = generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTraits)
-      if (!nftMetadata) {
-        return;
-      }
-      var chainMetadata = wrapMetadataFor(mintingPolicy.policyID, nftMetadata);
-      var assetName = `${mintingPolicy.policyID}${toHex(nftName)}`
-      var mintAssets = { [assetName]: 1 }
-
-      var domToClear = getDomElementsToClear(traitsPrefix, numTraits, nameDom, fileDom, ipfsDisplayDom);
-
-      lucid.selectWallet(wallet);
-      lucid.wallet.address().then(address => {
-        var txBuilder = lucid.newTx()
-                             .attachMintingPolicy(mintingPolicy)
-                             .attachMetadata(METADATA_KEY, chainMetadata)
-                             .mintAssets(mintAssets)
-                             .payToAddress(address, mintAssets);
-        if (policyExpirationSlot) {
-          txBuilder = txBuilder.validTo(lucid.utils.slotToUnixTime(policyExpirationSlot));
+        if (lucid.network !== 'Testnet') {
+          longToast('Mainnet not supported yet, please switch wallet network.');
+          return;
         }
-        txBuilder.complete().then(tx => signAndSubmitTxn(tx, scriptSKey, domToClear)).catch(toastMintError);
-      });
-    }).catch(e => toastMintError('Could not initialize Lucid (check your blockfrost key)'));
-  });
+
+        var nftName = document.querySelector(nameDom).value;
+        if (!nftName) {
+          shortToast('Please enter a name for NFT in the text box!');
+          return;
+        }
+
+        var scriptSKeyText = getFromInputOrSpan(scriptSKeyDom);
+        if (!scriptSKeyText) {
+          shortToast('Must either generate or enter a valid secret key before proceeding');
+          return;
+        }
+
+        try {
+          var scriptSKey = privateKeyFromCbor(scriptSKeyText);
+        } catch (error) {
+          shortToast(`Could not construct private key from '${scriptSKeyText}': ${error}`);
+          return;
+        }
+        var scriptVKey = scriptSKey.to_public();
+        var policyKeyHash = toHex(scriptVKey.hash().to_bytes());
+
+        var fileEl = document.querySelector(fileDom);
+        var fileNameEl = document.querySelector(`#${FILENAME_ID}`);
+        if (fileEl.files.length > 0 && fileEl.files[0].name != fileNameEl?.textContent) {
+          if (!confirm('The file you selected has not been uploaded yet, proceed?')) {
+            return;
+          }
+        }
+
+        var mintingPolicy = undefined;
+        if (policyExpirationSlot) {
+          mintingPolicy = getMintingPolicyFor(policyKeyHash, policyExpirationSlot);
+        } else {
+          mintingPolicy = getSigNativeScriptFor(policyKeyHash);
+        }
+
+        // TODO: Support multiple assets (nftName and metadata will break here!)
+        var nftMetadata = generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTraits)
+        if (!nftMetadata) {
+          return;
+        }
+        var chainMetadata = wrapMetadataFor(mintingPolicy.policyID, nftMetadata);
+        var assetName = `${mintingPolicy.policyID}${toHex(nftName)}`
+        var mintAssets = { [assetName]: 1 }
+
+        var domToClear = getDomElementsToClear(traitsPrefix, numTraits, nameDom, fileDom, ipfsDisplayDom);
+
+        lucid.selectWallet(wallet);
+        lucid.wallet.address().then(address => {
+          var txBuilder = lucid.newTx()
+                               .attachMintingPolicy(mintingPolicy)
+                               .attachMetadata(METADATA_KEY, chainMetadata)
+                               .mintAssets(mintAssets)
+                               .payToAddress(address, mintAssets);
+          if (policyExpirationSlot) {
+            txBuilder = txBuilder.validTo(lucid.utils.slotToUnixTime(policyExpirationSlot));
+          }
+          txBuilder.complete().then(tx => signAndSubmitTxn(tx, scriptSKey, domToClear)).catch(toastMintError);
+        });
+      }).catch(e => toastMintError('Could not initialize Lucid (check your blockfrost key)'));
+    }).catch(e => toastMintError(`Could not initialize the wallet that you selected: ${e}`));
+  }).catch(e => toastMintError(`Could not interpret slot: ${e}`));
 }
 
 function getFromInputOrSpan(inputOrSpanDom) {
