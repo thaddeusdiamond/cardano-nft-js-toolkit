@@ -13,7 +13,6 @@ const INPUT_TYPE = 'INPUT';
 const IPFS_LINK_ID = 'ipfs-io-link';
 const KEY_SUFFIX = 'name';
 const METADATA_KEY = '721';
-const REBATED_LOVELACE = 5000000;
 const SPAN_TYPE = 'SPAN';
 const VALUE_SUFFIX = 'value';
 
@@ -244,7 +243,6 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
 
       var assetName = `${mintingPolicy.policyID}${toHex(nftName)}`
       var mintAssets = { [assetName]: 1 }
-      var paymentOutput = { lovelace: REBATED_LOVELACE, [assetName]: 1 };
 
       lucid.selectWallet(wallet);
       lucid.wallet.address().then(address => {
@@ -252,7 +250,7 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
                              .attachMintingPolicy(mintingPolicy)
                              .attachMetadata(METADATA_KEY, chainMetadata)
                              .mintAssets(mintAssets)
-                             .payToAddress(address, paymentOutput);
+                             .payToAddress(address, mintAssets);
         if (policyExpirationSlot) {
           txBuilder = txBuilder.validTo(lucid.utils.slotToUnixTime(policyExpirationSlot));
         }
