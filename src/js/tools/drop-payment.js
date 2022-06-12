@@ -1,76 +1,66 @@
-import * as Secrets from "../secrets.js";
 import * as Selector from "./wallet-selector.js";
 import * as LucidInst from "./lucid-inst.js";
 
-function updateMintCount(count) {
-  var boundedCount = Math.max(Secrets.LOWER_LIMIT, Math.min(Secrets.UPPER_LIMIT, count));
-  document.querySelector("#mint-count").value = boundedCount
+const MINT_COUNT_DOM = "#mint-count";
+
+function updateMintCount(count, lowerLimit, upperLimit) {
+  var boundedCount = Math.max(lowerLimit, Math.min(upperLimit, count));
+  document.querySelector(MINT_COUNT_DOM).value = boundedCount;
 }
 
 function getCurrentCount() {
-  return parseInt(document.querySelector("#mint-count").value);
+  return parseInt(document.querySelector(MINT_COUNT_DOM).value);
 }
 
-export function decreaseMintCount(e) {
-  e.preventDefault()
-  updateMintCount(getCurrentCount() - 1);
-}
-
-export function increaseMintCount(e) {
+export function decreaseMintCount(e, lowerLimit, upperLimit) {
   e.preventDefault();
-  updateMintCount(getCurrentCount() + 1);
+  updateMintCount(getCurrentCount() - 1, lowerLimit, upperLimit);
 }
 
-export function validateMintCount(e) {
-  updateMintCount(getCurrentCount());
+export function increaseMintCount(e, lowerLimit, upperLimit) {
+  e.preventDefault();
+  updateMintCount(getCurrentCount() + 1, lowerLimit, upperLimit);
 }
 
-function getPaymentAddress() {
-  return LucidInst.getNetworkId().then(networkId => {
-    if (networkId == Selector.MAINNET) {
-      return Secrets.MAIN_PAYMENT_ADDR;
-    }
-    return Secrets.TEST_PAYMENT_ADDR;
-  });
+export function validateMintCount(e, lowerLimit, upperLimit) {
+  updateMintCount(getCurrentCount(), lowerLimit, upperLimit);
 }
 
-function toastTransactionError(error) {
-    Toastify({
-      text: `Transaction error occurred: ${JSON.stringify(error)}`,
-      duration: 3000
-    }).showToast()
+function toastPaymentError(message) {
+  Toastify({ text: message, duration: 3000 }).showToast();
 }
 
-export function mintNow(e) {
+export function mintNow(e, blockfrostKey, paymentAddr, price, rebate) {
   e.preventDefault();
   if (!Selector.isWalletConnected()) {
-    Toastify({
-        text: `Please connect a wallet before minting using "Connect Wallet" button (desktop only)`,
-        duration: 3000
-    }).showToast()
+    toastPaymentError('Please connect a wallet before minting using "Connect Wallet" button (desktop only)');
     return;
   }
 
   Selector.enableWallet(Selector.getConnectedWallet()).then(wallet => {
-    LucidInst.getLucidInstance(Secrets.MAIN_BLOCKFROST_PROJ, Secrets.TEST_BLOCKFROST_PROJ).then(lucid => {
-      getPaymentAddress().then(paymentAddress => {
-          lucid.selectWallet(wallet);
-          var paymentAmount =  (getCurrentCount() * Secrets.MINT_PRICE) + Secrets.MINT_REBATE;
-          const tx = lucid.newTx()
-                          .payToAddress(paymentAddress, { lovelace: paymentAmount })
-                          .complete()
-                          .then(tx =>
-                              tx.sign().complete().then(signedTx =>
-                                signedTx.submit().then(txHash =>
-                                  Toastify({
-                                    text: `Successfully sent money for minting in tx: ${txHash}`,
-                                    duration: 6000
-                                  }).showToast()
-                                )
-                              )
+    var lucidInst = LucidInst.getLucidInstance(blockfrostKey);
+    if (!lucidInst) {
+      toastPaymentError('Unable to initialize Lucid, check your secrets.js file for a network mismatch');
+      return;
+    }
+
+    lucidInst.then(lucid => {
+      lucid.selectWallet(wallet);
+      var paymentAmount =  (getCurrentCount() * price) + rebate;
+      const tx = lucid.newTx()
+                      .payToAddress(paymentAddr, { lovelace: paymentAmount })
+                      .complete()
+                      .then(tx =>
+                          tx.sign().complete().then(signedTx =>
+                            signedTx.submit().then(txHash =>
+                              Toastify({
+                                text: `Successfully sent money for minting in tx: ${txHash}`,
+                                duration: 6000
+                              }).showToast()
+                            )
                           )
-                          .catch(toastTransactionError);
-      });
+                      )
+                      .catch(err => toastPaymentError(`Transaction error occurred: ${JSON.stringify(err)}`));
     });
   });
 }

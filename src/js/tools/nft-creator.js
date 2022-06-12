@@ -1,4 +1,3 @@
-import * as Secrets from "../secrets.js";
 import * as Selector from "./wallet-selector.js";
 import * as LucidInst from "./lucid-inst.js";
 import * as NftStorage from "./nft-storage.js";
@@ -101,7 +100,7 @@ function updateDatetimeSlotSpan(e, blockfrostDom, datePickerDom, slotDisplayDom)
     return;
   }
 
-  var lucidPromise = LucidInst.getLucidInstance(blockfrostKey, blockfrostKey);
+  var lucidPromise = LucidInst.getLucidInstance(blockfrostKey);
   if (!lucidPromise) {
     shortToast('Please connect wallet to generate slot value');
     return;
@@ -213,7 +212,7 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
 
   updateDatetimePromise.then(policyExpirationSlot => {
     Selector.enableWallet(Selector.getConnectedWallet()).then(wallet => {
-      LucidInst.getLucidInstance(blockfrostKey, blockfrostKey).then(lucid => {
+      LucidInst.getLucidInstance(blockfrostKey).then(lucid => {
         if (lucid === undefined) {
           longToast('Your blockfrost key does not match the network of your wallet.');
           return;

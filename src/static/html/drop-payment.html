@@ -28,12 +28,18 @@
       NftToolkit.WalletSelector.buildDropdownDom("#wallet-container");
       NftToolkit.WalletSelector.configureDropdownListeners();
 
-      document.querySelector("#mint-fewer").addEventListener("click", NftToolkit.DropPayment.decreaseMintCount);
-      document.querySelector("#mint-more").addEventListener("click", NftToolkit.DropPayment.increaseMintCount);
-
-      document.querySelector("#mint-count").addEventListener("input", NftToolkit.DropPayment.validateMintCount);
-
-      document.querySelector("#mint-now").addEventListener("click", NftToolkit.DropPayment.mintNow);
+      document.querySelector("#mint-fewer").addEventListener("click", e => {
+        NftToolkit.DropPayment.decreaseMintCount(e, NftToolkit.Secrets.LOWER_LIMIT, NftToolkit.Secrets.UPPER_LIMIT)
+      });
+      document.querySelector("#mint-more").addEventListener("click", e => {
+        NftToolkit.DropPayment.increaseMintCount(e, NftToolkit.Secrets.LOWER_LIMIT, NftToolkit.Secrets.UPPER_LIMIT)
+      });
+      document.querySelector("#mint-count").addEventListener("input", e => {
+        NftToolkit.DropPayment.validateMintCount(e, NftToolkit.Secrets.LOWER_LIMIT, NftToolkit.Secrets.UPPER_LIMIT)
+      });
+      document.querySelector("#mint-now").addEventListener("click", e => {
+        NftToolkit.DropPayment.mintNow(e, NftToolkit.Secrets.BLOCKFROST_PROJ, NftToolkit.Secrets.PAYMENT_ADDR, NftToolkit.Secrets.MINT_PRICE, NftToolkit.Secrets.MINT_REBATE)
+      });
     })
   </script>
 

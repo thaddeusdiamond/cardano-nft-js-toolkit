@@ -12,10 +12,8 @@ Prerequisites:
 
 You must update your secrets in a root file called `src/js/secrets.js`. The file should contain the following format:
 
-    export const MAIN_PAYMENT_ADDR = "<PAYMENT_ADDR_MAINNET>"
-    export const MAIN_BLOCKFROST_PROJ = "<MAINNET_BLOCKFROST_PROJ>"
-    export const TEST_PAYMENT_ADDR = "<PAYMENT_ADDR_TESTNET>"
-    export const TEST_BLOCKFROST_PROJ = "<TESTNET_BLOCKFROST_PROJ>"
+    export const PAYMENT_ADDR = "<PAYMENT_ADDR>"
+    export const BLOCKFROST_PROJ = "<BLOCKFROST_PROJ>"
     export const MINT_PRICE = <MINT_PRICE_IN_LOVELACE>;
     export const MINT_REBATE = <USER_REBATE_IN_LOVELACE>;
     export const LOWER_LIMIT = <MIN_TO_MINT_USUALLY_ONE>;

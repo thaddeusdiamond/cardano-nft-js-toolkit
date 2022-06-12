@@ -2,7 +2,7 @@ import {Lucid, Blockfrost} from "lucid-cardano";
 
 import * as Selector from "./wallet-selector.js";
 
-const lucidNetworkNames = ['Testnet', 'Mainnet'];
+const lucidNetworkNames = ['testnet', 'mainnet'];
 
 export function getNetworkId() {
   if (!Selector.isWalletConnected()) {
@@ -22,31 +22,29 @@ export function getNetworkId() {
   });
 }
 
-export function getLucidInstance(blockfrostMain, blockfrostTest) {
+export function getLucidInstance(blockfrostKey) {
   if (!Selector.isWalletConnected()) {
     console.log("Cannot initialize Lucid without knowing network and no wallets detected");
     return;
   }
 
   return getNetworkId().then(networkId => {
-    var lucidParams = {}
+    var lucidApi;
+    var lucidNetwork;
     if (networkId == Selector.MAINNET) {
-        lucidParams.api = 'https://cardano-mainnet.blockfrost.io/api/v0'
-        lucidParams.project = blockfrostMain
-        lucidParams.network = 'Mainnet'
+        lucidApi = 'https://cardano-mainnet.blockfrost.io/api/v0';
+        lucidNetwork = 'Mainnet';
     } else if (networkId == Selector.TESTNET) {
-        lucidParams.api = 'https://cardano-testnet.blockfrost.io/api/v0'
-        lucidParams.project = blockfrostTest
-        lucidParams.network = 'Testnet'
+        lucidApi = 'https://cardano-testnet.blockfrost.io/api/v0';
+        lucidNetwork = 'Testnet';
+    } else {
+      throw `Unknown network ID returned by lucid: ${networkId}`;
     }
 
-    if (!lucidParams.project.startsWith(lucidNetworkNames[networkId].toLowerCase())) {
+    if (!blockfrostKey.startsWith(lucidNetworkNames[networkId])) {
       return undefined;
     }
 
-    return Lucid.new(
-      new Blockfrost(lucidParams.api, lucidParams.project),
-      lucidParams.network
-    );
+    return Lucid.new(new Blockfrost(lucidApi, blockfrostKey), lucidNetwork);
   })
 }
