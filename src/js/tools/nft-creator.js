@@ -240,9 +240,10 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
         return;
       }
       var chainMetadata = wrapMetadataFor(mintingPolicy.policyID, nftMetadata);
-
       var assetName = `${mintingPolicy.policyID}${toHex(nftName)}`
       var mintAssets = { [assetName]: 1 }
+
+      var domToClear = getDomElementsToClear(traitsPrefix, numTraits, nameDom, fileDom, ipfsDisplayDom);
 
       lucid.selectWallet(wallet);
       lucid.wallet.address().then(address => {
@@ -254,7 +255,7 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
         if (policyExpirationSlot) {
           txBuilder = txBuilder.validTo(lucid.utils.slotToUnixTime(policyExpirationSlot));
         }
-        txBuilder.complete().then(tx => signAndSubmitTxn(tx, scriptSKey)).catch(toastMintError);
+        txBuilder.complete().then(tx => signAndSubmitTxn(tx, scriptSKey, domToClear)).catch(toastMintError);
       });
     }).catch(e => toastMintError('Could not initialize Lucid (check your blockfrost key)'));
   });
@@ -334,14 +335,35 @@ function generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTr
   return {[nftName]: cip0025Metadata};
 }
 
+function getDomElementsToClear(traitsPrefix, numTraits, ...otherDomElements) {
+  var domElements = [];
+  for (var i = 1; i <= numTraits; i++) {
+    domElements.push(`${traitsPrefix}-${VALUE_SUFFIX}-${i}`);
+  }
+  for (const domElement of otherDomElements) {
+    domElements.push(domElement);
+  }
+  return domElements;
+}
 
-function signAndSubmitTxn(tx, scriptSKey) {
+function signAndSubmitTxn(tx, scriptSKey, domToClear) {
   tx.signWithPrivateKey(scriptSKey.to_bech32()).sign().complete().then(signedTx =>
-    signedTx.submit().then(txHash =>
+    signedTx.submit().then(txHash => {
       Toastify({
         text: `Successfully sent minting tx: ${txHash}!`,
         duration: 6000
-      }).showToast()
-    )
+      }).showToast();
+      domToClear.forEach(clearDomElement);
+    })
   ).catch(toastMintError);
+}
+
+function clearDomElement(domQuery) {
+  var domEl = document.querySelector(domQuery);
+  if (domEl.nodeName === SPAN_TYPE) {
+    domEl.textContent = '';
+  } else if (domEl.nodeName === INPUT_TYPE) {
+    domEl.value = '';
+  }
+  domEl.dispatchEvent(new Event('change'));
 }
