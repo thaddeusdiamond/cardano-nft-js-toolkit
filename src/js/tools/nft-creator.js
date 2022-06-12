@@ -53,13 +53,13 @@ export function enableRecursively(domElement) {
   Array.from(domElement.children).forEach(enableRecursively);
 }
 
-export function generatePolicyScriptAndKey(e, formDom, blockfrostDom, privKeyId, datetimeId, slotId, buttonsDom, displayDom, headerClassName) {
+export function generatePolicyScriptAndKey(e, policyAckDom, blockfrostDom, privKeyId, datetimeId, slotId, buttonsDom, displayDom, headerClassName, containerClassName) {
   e.preventDefault();
 
   var privateKey = privateKeyToCbor(LCore.PrivateKey.generate_ed25519());
 
   var privKeyContainer = document.createElement('div');
-  privKeyContainer.className = 'col-6';
+  privKeyContainer.className = containerClassName;
   var privKeyHeader = document.createElement('h4');
   privKeyHeader.textContent = 'Private Key:';
   privKeyHeader.className = headerClassName;
@@ -69,7 +69,7 @@ export function generatePolicyScriptAndKey(e, formDom, blockfrostDom, privKeyId,
   privKeyContainer.append(privKeyHeader, privKeySpan);
 
   var datetimeContainer = document.createElement('div');
-  datetimeContainer.className = 'col-4';
+  datetimeContainer.className = containerClassName;
   var datetimeHeader = document.createElement('h4');
   datetimeHeader.textContent = '(Optional) NFT Expiration';
   datetimeHeader.className = headerClassName;
@@ -80,7 +80,7 @@ export function generatePolicyScriptAndKey(e, formDom, blockfrostDom, privKeyId,
   datetimeLocal.addEventListener('change', e => updateDatetimeSlotSpan(e, blockfrostDom, `#${slotId}`));
 
   var slotContainer = document.createElement('div');
-  slotContainer.className = 'col-2';
+  slotContainer.className = containerClassName;
   var slotHeader = document.createElement('h4');
   slotHeader.className = headerClassName;
   slotHeader.textContent = 'Slot'
@@ -91,9 +91,10 @@ export function generatePolicyScriptAndKey(e, formDom, blockfrostDom, privKeyId,
   document.querySelector(buttonsDom).style.display = 'none';
   document.querySelector(displayDom).replaceChildren(privKeyContainer, datetimeContainer, slotContainer);
 
-  longToast('YOU MUST COPY DOWN THE PRIVATE KEY AND CARDANO SLOT YOU GENERATE!');
+  alert('REMEMBER: YOU MUST COPY DOWN THE PRIVATE KEY AND CARDANO SLOT YOU GENERATE!');
   window.onbeforeunload = (_ => "Have you written down your private key and slot number?");
-  enableRecursively(document.querySelector(formDom));
+
+  document.querySelector(policyAckDom).style.display = 'block';
 }
 
 function updateDatetimeSlotSpan(e, blockfrostDom, slotDom) {
@@ -136,6 +137,13 @@ function createTextInput(id, cssClass, placeholder) {
   input.placeholder = placeholder;
   return input;
 }
+
+export function handlePolicyAcknowledgement(e, policyAckDom, formDom){
+  e.preventDefault();
+  enableRecursively(document.querySelector(formDom));
+  document.querySelector(policyAckDom).style.display = 'none';
+}
+
 
 export function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
   e.preventDefault();

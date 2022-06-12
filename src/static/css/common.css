@@ -10,3 +10,7 @@
 .padded {
   padding: 5px;
 }
+
+.hidden {
+  display: none;
+}
