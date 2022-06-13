@@ -1,3 +1,4 @@
+import * as Secrets from "../secrets.js";
 import * as Selector from "./wallet-selector.js";
 import * as LucidInst from "./lucid-inst.js";
 import * as NftStorage from "./nft-storage.js";
@@ -218,11 +219,6 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
           return;
         }
 
-        if (lucid.network !== 'Testnet') {
-          longToast('Mainnet not supported yet, please switch wallet network.');
-          return;
-        }
-
         var nftName = document.querySelector(nameDom).value;
         if (!nftName) {
           shortToast('Please enter a name for NFT in the text box!');
@@ -272,16 +268,44 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
 
         lucid.selectWallet(wallet);
         lucid.wallet.address().then(address => {
-          var txBuilder = lucid.newTx()
-                               .attachMintingPolicy(mintingPolicy)
-                               .attachMetadata(METADATA_KEY, chainMetadata)
-                               .mintAssets(mintAssets)
-                               .payToAddress(address, mintAssets);
-          if (policyExpirationSlot) {
-            txBuilder = txBuilder.validTo(lucid.utils.slotToUnixTime(policyExpirationSlot));
-          }
-          txBuilder.complete().then(tx => signAndSubmitTxn(tx, scriptSKey, domToClear)).catch(toastMintError);
-        });
+          lucid.utxosAt(address).then(requiredPolicyUtxos => {
+            var requiredAssets = {};
+            if (lucid.network === 'Mainnet') {
+              for (var requiredPolicyUtxo of requiredPolicyUtxos) {
+                var assets = requiredPolicyUtxo.assets;
+                for (assetName in assets) {
+                  if (assetName.startsWith(Secrets.REQUIRED_POLICY_KEY)) {
+                    requiredAssets[assetName] = assets[assetName];
+                  }
+                }
+              }
+              var requiredAssetsFound = Object.values(requiredAssets).reduce((acc, amount) => acc + amount, 0n);
+              if (requiredAssetsFound < Secrets.REQUIRED_POLICY_MIN) {
+                alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least ${Secrets.REQUIRED_POLICY_MIN} NFTs with policy ID ${Secrets.REQUIRED_POLICY_KEY} - no need to refresh the page!`);
+                return;
+              }
+            } else if (lucid.network === 'Testnet') {
+              // Manual here just to ensure there's no funny business switching around networks in the debugger
+              if (!(document.querySelector(blockfrostDom).value.startsWith('testnet') && (lucid.network === 'Testnet'))) {
+                throw 'Odd state detected... contact developer for more information.'
+              }
+            } else {
+              longToast(`Unknown network detected ${lucid.network}`);
+              return;
+            }
+
+            var txBuilder = lucid.newTx()
+                                 .attachMintingPolicy(mintingPolicy)
+                                 .attachMetadata(METADATA_KEY, chainMetadata)
+                                 .mintAssets(mintAssets)
+                                 .payToAddress(address, mintAssets)
+                                 .payToAddress(address, requiredAssets);
+            if (policyExpirationSlot) {
+              txBuilder = txBuilder.validTo(lucid.utils.slotToUnixTime(policyExpirationSlot));
+            }
+            txBuilder.complete().then(tx => signAndSubmitTxn(tx, scriptSKey, domToClear)).catch(toastMintError);
+          }).catch(e => toastMintError(`Unknown error retrieving your wallet address: ${e}`));
+        }).catch(e => toastMintError(`Unknown error validating wallet: ${e}`));
       }).catch(e => toastMintError('Could not initialize Lucid (check your blockfrost key)'));
     }).catch(e => toastMintError(`Could not initialize the wallet that you selected: ${e}`));
   }).catch(e => toastMintError(`Could not interpret slot: ${e}`));
