@@ -61,6 +61,6 @@ export function mintNow(e, blockfrostKey, paymentAddr, price) {
                           )
                       )
                       .catch(err => toastPaymentError(`Transaction error occurred: ${JSON.stringify(err)}`));
-    });
-  });
+    }).catch(_ => toastPaymentError('Wallet initialization failed (are you on the right network?)'));
+  }).catch(err => toastPaymentError(`Unknown error occurred, contact developer: ${err}`));
 }
