@@ -30,7 +30,7 @@ function toastPaymentError(message) {
   Toastify({ text: message, duration: 3000 }).showToast();
 }
 
-export function mintNow(e, blockfrostKey, paymentAddr, price, rebate) {
+export function mintNow(e, blockfrostKey, paymentAddr, price) {
   e.preventDefault();
   if (!Selector.isWalletConnected()) {
     toastPaymentError('Please connect a wallet before minting using "Connect Wallet" button (desktop only)');
@@ -46,7 +46,7 @@ export function mintNow(e, blockfrostKey, paymentAddr, price, rebate) {
 
     lucidInst.then(lucid => {
       lucid.selectWallet(wallet);
-      var paymentAmount =  (getCurrentCount() * price) + rebate;
+      var paymentAmount = getCurrentCount() * price;
       const tx = lucid.newTx()
                       .payToAddress(paymentAddr, { lovelace: paymentAmount })
                       .complete()
