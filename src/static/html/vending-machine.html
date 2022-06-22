@@ -1,0 +1,143 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.6/dist/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.2.1/dist/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+
+    <script type="text/javascript" src="nft-toolkit.js"></script>
+    <link rel="stylesheet" href="vending-machine.css" />
+  </head>
+
+  <body>
+    <div id="wallet-container" class="container"></div>
+
+    <div id="vending-machine-container" class="container text-start align-items-start">
+      <form id="vending-machine-form" autocomplete="on" novalidate disabled>
+        <div class="row">
+          <div class="col-2">
+            <h4>Blockfrost API Key</h4>
+          </div>
+          <div class="col-10">
+            <input id="blockfrost-api-key" class="col-10" type="text" placeholder="Please get one from https://blockfrost.io"/>
+          </div>
+        </div>
+        <div class="row mb-2">
+          <div id="nft-key-buttons" class="row">
+            <input id="nft-policy-create" class="col-4 offset-1" type="submit" value="Generate New NFT Policy and Keys">
+            <input id="nft-policy-exists" class="col-4 offset-2" type="submit" value="Enter An Existing NFT Key and Slot">
+          </div>
+          <div id="nft-key-display" class="row text-break"></div>
+          <div class="row">
+            <input id="nft-policy-ack" style="display:none" type="submit" value="I promise I have written down my keys and slot!">
+          </div>
+        </div>
+        <div class="row bordered text-center p-3 gap-3">
+          <div class="col-4">
+            <div class="row">
+              <h4>Vending Machine Address</h4>
+              <input id="vending-machine-addr" type="text" placeholder="Address where users will pay" disabled>
+            </div>
+            <div class="row mt-3">
+              <h4>Vending Machine Private Key</h4>
+              <textarea id="vending-machine-skey" placeholder="Private key for the vending machine address" disabled></textarea>
+            </div>
+            <div class="row mt-3">
+              <h4>Profit Vault Address</h4>
+              <input id="profit-vault-addr" type="text" placeholder="This should be a hardware wallet!" disabled>
+            </div>
+            <div class="row mt-3">
+              <h4>Mint Price</h4>
+              <input id="mint-price" type="number" placeholder="0.000" disabled>
+            </div>
+            <div class="row mt-3">
+              <h4>NFT Request Limit</h4>
+              <input id="single-vend-max" type="number" placeholder="(None by default)" disabled>
+            </div>
+            <div class="row mt-3">
+              <label><input id="vend-randomly" type="checkbox" disabled> Vend Randomly?</label>
+            </div>
+          </div>
+          <div class="col-2">
+            <div class="row">
+              <h4>File Uploader</h4>
+            </div>
+            <div class="row">
+              <input id="nft-files-selector" class="form-control mb-2" type="file" accept=".json" multiple disabled>
+            </div>
+            <div class="row">
+              <input id="nft-files-upload" type="submit" value="Upload NFT Metadata Files" disabled>
+            </div>
+          </div>
+          <div class="col-5 padded">
+            <div class="row text-center">
+              <input id="vending-machine-start" type="submit" value="Start!!" class="offset-4 col-4" disabled>
+            </div>
+            <div class="row text-center">
+              <input id="vending-machine-stop" type="submit" value="Shut Down" class="offset-4 col-4 hidden" disabled>
+            </div>
+            <div class="row bordered mt-2" style="height:300px; overflow: scroll; display: flex; flex-direction: column-reverse;">
+              <pre id="vending-machine-output" class="text-start"></pre>
+            </div>
+            <div class="row text-center">
+              <input id="vending-machine-logs" type="submit" value="Download Log File" class="offset-4 col-4" disabled>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </body>
+
+  <script type="module">
+    NftToolkit.then(NftToolkit => {
+      NftToolkit.WalletSelector.buildDropdownDom("#wallet-container");
+      NftToolkit.WalletSelector.configureDropdownListeners();
+
+      document.querySelector("#nft-policy-create").addEventListener("click", e => NftToolkit.NftCreator.generatePolicyScriptAndKey(e, '#nft-policy-ack', '#blockfrost-api-key', 'nft-policy-key', 'expiration-datetime', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', '', 'col-4'));
+      document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#vending-machine-form', 'nft-policy-key', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', 'col-3 offset-2'));
+      document.querySelector('#nft-policy-ack').addEventListener('click', e => NftToolkit.NftCreator.handlePolicyAcknowledgement(e, '#nft-policy-ack', '#vending-machine-form'));
+
+      document.querySelector('#nft-files-upload').addEventListener('click', e => NftToolkit.VendingMachine.uploadMetadataFiles(e, '#nft-files-selector', '#nft-files-upload'));
+
+      document.querySelector('#vending-machine-start').addEventListener('click',
+        async e => {
+          document.querySelector('#vending-machine-start').disabled = true;
+          try {
+            await NftToolkit.VendingMachine.startVending(
+              e, '#vending-machine-output', '#blockfrost-api-key', '#expiration-datetime', '#nft-policy-slot', '#nft-policy-key', '#vending-machine-addr', '#vending-machine-skey', '#profit-vault-addr', '#mint-price', '#single-vend-max', '#vend-randomly', '#nft-files-selector'
+            );
+
+            document.querySelector('#vending-machine-stop').style.display = 'block';
+            document.querySelector('#vending-machine-start').style.display = 'none';
+          } finally {
+            document.querySelector('#vending-machine-start').disabled = false;
+          }
+        }
+      );
+      document.querySelector('#vending-machine-stop').addEventListener('click',
+        async e => {
+          document.querySelector('#vending-machine-stop').disabled = true;
+          try {
+            var stopped = await NftToolkit.VendingMachine.stopVending(e);
+            if (stopped) {
+              document.querySelector('#vending-machine-stop').style.display = 'none';
+              document.querySelector('#vending-machine-start').style.display = 'block';
+            }
+          } finally {
+            document.querySelector('#vending-machine-stop').disabled = false;
+          }
+        }
+      );
+    })
+
+    document.querySelector('#vending-machine-logs').addEventListener('click', e => {
+      e && e.preventDefault();
+      var content = document.getElementById('vending-machine-output').textContent;
+      window.open(`data:application/txt,${encodeURIComponent(content)}`);
+    });
+  </script>
+
+</html>

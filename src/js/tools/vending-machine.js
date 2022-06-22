@@ -1,0 +1,310 @@
+import arrayShuffle from 'array-shuffle';
+import {toHex} from "lucid-cardano";
+
+import * as Secrets from "../secrets.js";
+import * as Selector from "./wallet-selector.js";
+import * as LucidInst from "./lucid-inst.js";
+import * as NftPolicy from "./nft-policy.js";
+
+import {shortToast, longToast} from "./toastify-utils.js";
+import {validate, validated} from "./utils.js";
+
+var VendingMachineInst = undefined;
+var MetadataRef = undefined;
+
+export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadButtonDom) {
+  e && e.preventDefault();
+
+  var metadataFiles = document.querySelector(metadataFilesDom)?.files;
+  if (!metadataFiles) {
+    return;
+  }
+
+  try {
+    validate(!VendingMachineInst || !VendingMachineInst.isRunning, 'Cannot upload new metadata files while your vending machine is running!');
+    document.querySelector(metadataUploadButtonDom).disabled = true;
+
+    MetadataRef = [];
+    for (var i = 0; i < metadataFiles.length; i++) {
+      console.log(`Uploading ${metadataFiles[i].name}...`);
+      var readPromise = new Promise((resolve, reject) => {
+        var reader = new FileReader();
+        reader.onloadend = (event => resolve(event.target.result));
+        reader.onerror = (event => reject(event));
+        reader.readAsText(metadataFiles[i]);
+      });
+      var metadataText = await readPromise;
+      MetadataRef.push(JSON.parse(metadataText));
+    }
+
+    shortToast(`Successfully uploaded ${metadataFiles.length} metadata files!`);
+    document.querySelector(metadataFilesDom).value = '';
+  } catch (err) {
+    shortToast(err);
+  } finally {
+    document.querySelector(metadataUploadButtonDom).disabled = false;
+  }
+}
+
+export async function startVending(
+  e, outputDom, blockfrostApiKeyDom, expirationDatetimeDom, nftPolicySlotDom,
+  nftPolicyKeyDom, vendingMachineAddrDom, vendingMachineSkeyDom,
+  profitVaultAddrDom, mintPriceDom, singleVendMaxDom, vendRandomlyDom, metadataFilesDom
+) {
+  e && e.preventDefault();
+
+  try {
+    var blockfrostKey = validated(document.querySelector(blockfrostApiKeyDom)?.value, 'Please enter a valid Blockfrost API key in the text box');
+    validate(Selector.isWalletConnected(), 'Please connect a wallet before vending using "Connect Wallet" button');
+
+    var policyExpirationSlot = await NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostApiKeyDom, expirationDatetimeDom, nftPolicySlotDom);
+    var policySKeyText = validated(NftPolicy.NftPolicy.getKeyFromInputOrSpan(nftPolicyKeyDom), 'Must either generate or enter a valid secret key before proceeding');
+    var policySKey = NftPolicy.NftPolicy.privateKeyFromCbor(policySKeyText);
+    var policyKeyHash = toHex(policySKey.to_public().hash().to_bytes());
+
+    var nftPolicy = new NftPolicy.NftPolicy(policyExpirationSlot, policySKey, policyKeyHash);
+    var vendingMachine = new VendingMachine(MetadataRef, nftPolicy, blockfrostKey, vendingMachineAddrDom, vendingMachineSkeyDom, profitVaultAddrDom, mintPriceDom, singleVendMaxDom, vendRandomlyDom, metadataFilesDom, outputDom);
+
+    await vendingMachine.initialize();
+    VendingMachineInst = vendingMachine;
+  } catch (err) {
+    shortToast(err);
+    throw err;
+  }
+}
+
+export async function stopVending(e) {
+  e && e.preventDefault();
+
+  validate(VendingMachineInst, 'Attempting to shut down unstarted vending machine');
+  if (!confirm("Are you sure you want to shut down your vending machine?")) {
+    shortToast('Shut down cancelled by user');
+    return false;
+  }
+
+  try {
+    await VendingMachineInst.shutDown();
+    return true;
+  } catch (err) {
+    longToast(`Could not shut down vending machine: '${err}'.  To force quit, exit your browser tab`);
+  } finally {
+    VendingMachineInst = undefined;
+    shortToast("Vending machine ended!");
+  }
+}
+
+class RebateCalculator {
+
+  static COIN_SIZE = 0.0;             // Will change in next era to slightly lower fees
+  static MIN_UTXO_VALUE = 1000000;
+  static PIDSIZE = 28.0;
+  static SINGLE_POLICY = 1;
+  static UTXO_SIZE_WITHOUT_VAL = 27.0;
+
+  static ADA_ONLY_UTXO_SIZE = RebateCalculator.COIN_SIZE + RebateCalculator.UTXO_SIZE_WITHOUT_VAL;
+  static UTXO_BASE_RATIO = Math.ceil(RebateCalculator.MIN_UTXO_VALUE / RebateCalculator.ADA_ONLY_UTXO_SIZE);
+
+  static calculateRebate(numPolicies, numAssets, totalNameChars) {
+    if (!numAssets) {
+      return 0n;
+    }
+
+    var assetWords = Math.ceil(((numAssets * 12.0) + (totalNameChars) + (numPolicies * RebateCalculator.PIDSIZE)) / 8.0);
+    var utxoNativeTokenMultiplier = RebateCalculator.UTXO_SIZE_WITHOUT_VAL + (6 + assetWords);
+    return BigInt(RebateCalculator.UTXO_BASE_RATIO * utxoNativeTokenMultiplier);
+  }
+
+  constructor() {
+    throw 'This is a utility class, not to be instantiated';
+  }
+
+}
+
+class VendingMachine {
+
+  static ADA_TO_LOVELACE = 1000000n;
+  static LOVELACE = 'lovelace';
+  static KEYS_TO_STRINGIFY = ['', 'blockfrostKey', 'mintPrice', 'nftPolicy', 'slot', 'pubKeyHash', 'profitVaultAddr', 'singleVendMax', 'vendRandomly', 'vendingMachineAddr'];
+  static NO_LIMIT = 100;
+  static VENDING_INTERVAL = 5000;
+
+  constructor(metadata, nftPolicy, blockfrostKey, vendingMachineAddrDom, vendingMachineSkeyDom, profitVaultAddrDom, mintPriceDom, singleVendMaxDom, vendRandomlyDom, metadataFilesDom, outputDom) {
+    this.metadata = metadata;
+    this.nftPolicy = nftPolicy;
+    this.blockfrostKey = blockfrostKey;
+    this.vendingMachineAddr = document.querySelector(vendingMachineAddrDom)?.value;
+    this.vendingMachineSkeyVal = document.querySelector(vendingMachineSkeyDom)?.value;
+    this.profitVaultAddr = document.querySelector(profitVaultAddrDom)?.value;
+    this.mintPriceStr = document.querySelector(mintPriceDom)?.value;
+    this.singleVendMax = document.querySelector(singleVendMaxDom)?.value;
+    this.vendRandomly = document.querySelector(vendRandomlyDom)?.checked;
+    this.metadataFilesEl = document.querySelector(metadataFilesDom);
+    this.outputEl = document.querySelector(outputDom);
+  }
+
+  log(message) {
+    this.outputEl.textContent += `[${new Date().toISOString()}] ${message}\n`;
+  }
+
+  async initialize() {
+    validate(this.vendingMachineAddr, 'Please enter a valid vending machine address');
+    validate(this.vendingMachineSkeyVal, 'Please enter a valid private key for the vending machine');
+    this.vendingMachineSkey = validated(NftPolicy.NftPolicy.privateKeyFromCbor(this.vendingMachineSkeyVal), `Could not generate key from: '${this.vendingMachineSkeyVal}'`);
+
+    validate(this.outputEl, 'Issue configuring output message box');
+    validate(this.profitVaultAddr, 'Please enter a valid profit vault address');
+
+    validate(this.mintPriceStr, 'No default values allowed for mint price.  For free mints, explicitly type 0');
+    this.mintPrice = VendingMachine.ADA_TO_LOVELACE * BigInt(this.mintPriceStr);
+
+    if (!this.mintPrice) {
+      validate(this.singleVendMax, 'Must explicitly specify single vend max for free mints');
+    } else if (!this.singleVendMax) {
+      this.singleVendMax = VendingMachine.NO_LIMIT;
+    }
+
+    validate(this.vendingMachineAddr != this.profitVaultAddr, 'Cannot have the same address for profit vault and vending machine');
+
+    var pendingFiles = this.metadataFilesEl.files.length;
+    validate(!pendingFiles || confirm('You have metadata files that have not been uploaded, proceed?'), 'User aborted to upload files');
+
+    validate(this.metadata !== undefined, "Metadata may be empty but it must not be undefined");
+    if (this.vendRandomly) {
+      this.metadata = arrayShuffle(this.metadata);
+    }
+
+    var lucid = await LucidInst.getLucidInstance(this.blockfrostKey);
+    this.lucid = validated(lucid, 'Your blockfrost key does not match the network of your wallet.');
+    this.lucid.selectWalletFromPrivateKey(this.vendingMachineSkey.to_bech32());
+
+    this.exclusions = [];
+    this.isValidated = true;
+    this.isRunning = true;
+    this.log(`Vending machine initialized! ${this.toString()}`);
+
+    this.log(`Starting on a loop for every ${VendingMachine.VENDING_INTERVAL}ms`);
+    setTimeout((_ => this.vend()).bind(this), VendingMachine.VENDING_INTERVAL);
+  }
+
+  async vend() {
+    if (!this.isRunning) {
+      return;
+    }
+
+    validate(this.isValidated, 'State error: validate your vending machine before vending');
+
+    this.log(`${this.metadata.length} mints remaining.  Looking for new UTXOs in vending machine...`);
+    var utxos = await this.lucid.utxosAtWithUnit(this.vendingMachineAddr, VendingMachine.LOVELACE);
+    for (var utxo of utxos) {
+      var utxoWithIx = `${utxo.txHash}#${utxo.outputIndex}`;
+      if (this.exclusions.includes(utxoWithIx)) {
+        continue;
+      }
+      this.exclusions.push(utxoWithIx);
+
+      var balance = utxo.assets[VendingMachine.LOVELACE];
+      var numMintsRequested = this.mintPrice ? Number(balance / this.mintPrice) : this.singleVendMax;
+      var numMints = Math.min(this.singleVendMax, this.metadata.length, numMintsRequested);
+      this.log(`Attempting to mint ${numMints} (${numMintsRequested} requested)`)
+
+      var mintingPolicy = this.nftPolicy.getMintingPolicy();
+      var mergedMetadata = {};
+      var mintAssets = {};
+      var totalNameChars = 0;
+      for (var i = 0; i < numMints; i++) {
+        // TODO: How to alert about failed vends???
+        var nftMetadata = this.metadata.pop();
+        this.log(JSON.stringify(nftMetadata))
+        validate(Object.keys(nftMetadata).length == 1, `Only 1 asset name permitted per file, found ${Object.keys(nftMetadata)}`);
+
+        var nftName = Object.keys(nftMetadata)[0];
+        var assetName = `${mintingPolicy.policyID}${toHex(nftName)}`;
+        mintAssets[assetName] = 1;
+        mergedMetadata[nftName] = nftMetadata;
+        totalNameChars += nftName.length;
+      }
+
+      var inputs = await this.lucid.inputsOf(utxo);
+      var inputAddress = validated(inputs[0], `Could not find input for ${utxo.txHash}#${utxo.outputIndex}`);
+      if (!numMints || !this.mintPrice) {
+        var changeAddress = inputAddress;
+      } else {
+        var overage = balance - (BigInt(numMints) * this.mintPrice);
+        var rebate = RebateCalculator.calculateRebate(RebateCalculator.SINGLE_POLICY, numMints, totalNameChars);
+        var changeAddress = this.profitVaultAddr;
+      }
+
+      var txBuilder = this.lucid.newTx().collectFrom([utxo]);
+      if (numMints && this.mintPrice) {
+        txBuilder = txBuilder.payToAddress(inputAddress, {lovelace: (rebate + overage)});
+      }
+      if (numMints) {
+        txBuilder = txBuilder.attachMintingPolicy(mintingPolicy)
+                             .attachMetadata(NftPolicy.METADATA_KEY, {[mintingPolicy.policyID] : mergedMetadata})
+                             .mintAssets(mintAssets)
+                             .payToAddress(inputAddress, mintAssets);
+      }
+      if (this.nftPolicy.slot) {
+        txBuilder = txBuilder.validTo(this.lucid.utils.slotToUnixTime(this.nftPolicy.slot));
+      }
+      txBuilder.complete({changeAddress: changeAddress}).then(tx => {
+        if (tx.txComplete.body().mint()) {
+          tx = tx.signWithPrivateKey(this.nftPolicy.key.to_bech32());
+        }
+        tx.signWithPrivateKey(this.vendingMachineSkey.to_bech32())
+          .complete()
+          .then((signedTx => {
+            this.log(signedTx.txSigned.body().to_json());
+            signedTx.submit().then((txHash => {
+              this.log(`Signed transaction submitted as ${txHash}`);
+              shortToast(`Successfully processed a new customer order!`);
+            }).bind(this));
+          }).bind(this));
+      });
+    }
+
+    setTimeout((_ => this.vend()).bind(this), VendingMachine.VENDING_INTERVAL);
+  }
+
+  shutDown() {
+    this.isRunning = false;
+    this.log('Vending machine shut down!');
+  }
+
+  toString() {
+    return JSON.stringify(this, (key, value) => {
+      if (!VendingMachine.KEYS_TO_STRINGIFY.includes(key)) {
+        return undefined;
+      }
+      return (typeof value === 'bigint') ? value.toString() : value;
+    });
+  }
+}
+
+/**lucid.wallet.address().then(address => {
+          lucid.utxosAt(address).then(requiredPolicyUtxos => {
+            var requiredAssets = {};
+            if (lucid.network === 'Mainnet') {
+              for (var requiredPolicyUtxo of requiredPolicyUtxos) {
+                var assets = requiredPolicyUtxo.assets;
+                for (assetName in assets) {
+                  if (assetName.startsWith(Secrets.REQUIRED_POLICY_KEY)) {
+                    requiredAssets[assetName] = assets[assetName];
+                  }
+                }
+              }
+              var requiredAssetsFound = Object.values(requiredAssets).reduce((acc, amount) => acc + amount, 0n);
+              // TODO: Restrict based on some constant multiplier (e.g., 500)
+              if (requiredAssetsFound < Secrets.REQUIRED_POLICY_MIN) {
+                alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least ${Secrets.REQUIRED_POLICY_MIN} NFTs with policy ID ${Secrets.REQUIRED_POLICY_KEY} - no need to refresh the page!`);
+                return;
+              }
+            } else if (lucid.network === 'Testnet') {
+              // Manual here just to ensure there's no funny business switching around networks in the debugger
+              if (!(document.querySelector(blockfrostDom).value.startsWith('testnet') && (lucid.network === 'Testnet'))) {
+                throw 'Odd state detected... contact developer for more information.'
+              }
+            } else {
+              longToast(`Unknown network detected ${lucid.network}`);
+              return;
+            }**/

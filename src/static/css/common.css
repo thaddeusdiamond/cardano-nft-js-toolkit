@@ -11,6 +11,10 @@
   padding: 5px;
 }
 
+.margin {
+  margin: 20px;
+}
+
 .hidden {
   display: none;
 }
