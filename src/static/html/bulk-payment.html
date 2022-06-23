@@ -1,0 +1,75 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.2.1/dist/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+
+    <script type="text/javascript" src="nft-toolkit.js"></script>
+    <link rel="stylesheet" href="bulk-payment.css" />
+  </head>
+
+  <body>
+    <div id="wallet-container" class="container"></div>
+
+    <div id="payment-container" class="container text-start align-items-start">
+      <div id="payment-notice" class="font-weight-bold">
+        This software is provided AS IS without any warranties, representations or other
+        guarantees whatsoever.  It's use is entirely at your discretion and is completely royalty-free.
+        YOU ARE RESPONSIBLE FOR VALIDATING ALL TRANSACTIONS.  Please double check any files you upload,
+        transactions you sign. or otherwise.  You are here interacting directly with the Cardano blockchain
+        using interfaces provided by <a href="https://blockfrost.io">blockfrost.io</a>.  Proceed with caution.
+      </div>
+      <div class="row">
+        <input id="payment-terms" type="submit" value="I Agree to These Terms and Conditions">
+      </div>
+      <div class="row">
+        <div class="col-2">
+          <h4>Blockfrost API Key</h4>
+        </div>
+        <div class="col-10">
+          <input id="blockfrost-api-key" class="col-10" type="text" placeholder="Please get one from https://blockfrost.io" disabled/>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-2">
+          <h4>Instructions</h4>
+        </div>
+        <div class="col-10">
+          The file uploader below accepts a simple .txt or .csv file that consists of a series of <em>ADDRESSES</em> and <em>LOVELACES</em>,
+          separated by a single comma, one per line.  If this file format is not obeyed, the program below will abort.  Check carefully.
+        </div>
+      </div>
+      <div class="row">
+        <div class="row mt-3">
+          <h4>Address, Lovelace CSV Upload (Each Address on It's OWN LINE)</h4>
+          <input id="addr-file-selector" class="form-control mb-2" type="file" accept=".txt,.csv" disabled>
+          <input id="addr-file-upload" type="submit" value="Generate Payment Transactions" disabled>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+
+<script type="module">
+  NftToolkit.then(NftToolkit => {
+    NftToolkit.WalletSelector.buildDropdownDom("#wallet-container");
+    NftToolkit.WalletSelector.configureDropdownListeners();
+
+    document.querySelector("#payment-terms").addEventListener("click", e => {
+      e && e.preventDefault();
+      document.querySelectorAll('input').forEach(input => input.disabled = false);
+      document.querySelector('#payment-terms').style.display = 'none';
+    });
+    document.querySelector("#addr-file-upload").addEventListener("click", async e => {
+      e && e.preventDefault();
+      document.querySelector("#addr-file-upload").disabled = true;
+      try {
+        await NftToolkit.BulkPayment.generateTransaction(e, "#blockfrost-api-key", "#addr-file-selector");
+      } finally {
+        document.querySelector("#addr-file-upload").disabled = false;
+      }
+    });
+  });
+</script>
