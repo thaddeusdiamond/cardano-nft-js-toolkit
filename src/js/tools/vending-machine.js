@@ -12,7 +12,40 @@ import {validate, validated} from "./utils.js";
 var VendingMachineInst = undefined;
 var MetadataRef = undefined;
 
-export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadButtonDom) {
+async function validatePermissionsForRequiredAssets(blockfrostKey, numMetadata) {
+  var wallet = validated(await Selector.enableWallet(Selector.getConnectedWallet()), 'Please connect a wallet using "Connect Wallet"');
+  var lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'Please check that your wallet network matches the blockfrost key network');
+  lucid.selectWallet(wallet);
+
+  var address = await lucid.wallet.address();
+  var requiredPolicyUtxos = await lucid.utxosAt(address);
+
+  var requiredAssets = {};
+  if (lucid.network === 'Mainnet') {
+    for (var requiredPolicyUtxo of requiredPolicyUtxos) {
+      var assets = requiredPolicyUtxo.assets;
+      for (var assetName in assets) {
+        if (assetName.startsWith(Secrets.REQUIRED_POLICY_KEY)) {
+          requiredAssets[assetName] = assets[assetName];
+        }
+      }
+    }
+    var requiredAssetsFound = Number(Object.values(requiredAssets).reduce((acc, amount) => acc + amount, 0n));
+    if ((numMetadata / requiredAssetsFound) > Secrets.REQUIRED_VENDING_MACHINE_RATIO) {
+      alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least 1 NFT with policy ID ${Secrets.REQUIRED_POLICY_KEY} for every ${Secrets.REQUIRED_VENDING_MACHINE_RATIO} metadata files you upload - no need to refresh the page!`);
+      throw 'Vending machine aborting';
+    }
+  } else if (lucid.network === 'Testnet') {
+    // Manual here just to ensure there's no funny business switching around networks in the debugger
+    if (!(blockfrostKey.startsWith('testnet') && (lucid.network === 'Testnet'))) {
+      throw 'Odd state detected... contact developer for more information.'
+    }
+  } else {
+    throw `Unknown network detected ${lucid.network}`;
+  }
+}
+
+export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadButtonDom, blockfrostApiKeyDom) {
   e && e.preventDefault();
 
   var metadataFiles = document.querySelector(metadataFilesDom)?.files;
@@ -23,6 +56,12 @@ export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadBut
   try {
     validate(!VendingMachineInst || !VendingMachineInst.isRunning, 'Cannot upload new metadata files while your vending machine is running!');
     document.querySelector(metadataUploadButtonDom).disabled = true;
+
+    validate(Selector.isWalletConnected(), 'Please connect a wallet before uploading metadata using "Connect Wallet" button');
+    var wallet = await Selector.enableWallet(Selector.getConnectedWallet());
+
+    var blockfrostKey = validated(document.querySelector(blockfrostApiKeyDom).value, 'Please enter a blockfrost key before uploading metadata');
+    await validatePermissionsForRequiredAssets(blockfrostKey, metadataFiles.length);
 
     MetadataRef = [];
     for (var i = 0; i < metadataFiles.length; i++) {
@@ -56,6 +95,7 @@ export async function startVending(
   try {
     var blockfrostKey = validated(document.querySelector(blockfrostApiKeyDom)?.value, 'Please enter a valid Blockfrost API key in the text box');
     validate(Selector.isWalletConnected(), 'Please connect a wallet before vending using "Connect Wallet" button');
+    await validatePermissionsForRequiredAssets(blockfrostKey, MetadataRef.length);
 
     var policyExpirationSlot = await NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostApiKeyDom, expirationDatetimeDom, nftPolicySlotDom);
     var policySKeyText = validated(NftPolicy.NftPolicy.getKeyFromInputOrSpan(nftPolicyKeyDom), 'Must either generate or enter a valid secret key before proceeding');
@@ -280,31 +320,3 @@ class VendingMachine {
     });
   }
 }
-
-/**lucid.wallet.address().then(address => {
-          lucid.utxosAt(address).then(requiredPolicyUtxos => {
-            var requiredAssets = {};
-            if (lucid.network === 'Mainnet') {
-              for (var requiredPolicyUtxo of requiredPolicyUtxos) {
-                var assets = requiredPolicyUtxo.assets;
-                for (assetName in assets) {
-                  if (assetName.startsWith(Secrets.REQUIRED_POLICY_KEY)) {
-                    requiredAssets[assetName] = assets[assetName];
-                  }
-                }
-              }
-              var requiredAssetsFound = Object.values(requiredAssets).reduce((acc, amount) => acc + amount, 0n);
-              // TODO: Restrict based on some constant multiplier (e.g., 500)
-              if (requiredAssetsFound < Secrets.REQUIRED_POLICY_MIN) {
-                alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least ${Secrets.REQUIRED_POLICY_MIN} NFTs with policy ID ${Secrets.REQUIRED_POLICY_KEY} - no need to refresh the page!`);
-                return;
-              }
-            } else if (lucid.network === 'Testnet') {
-              // Manual here just to ensure there's no funny business switching around networks in the debugger
-              if (!(document.querySelector(blockfrostDom).value.startsWith('testnet') && (lucid.network === 'Testnet'))) {
-                throw 'Odd state detected... contact developer for more information.'
-              }
-            } else {
-              longToast(`Unknown network detected ${lucid.network}`);
-              return;
-            }**/
