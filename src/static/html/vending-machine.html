@@ -100,7 +100,10 @@
       document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#vending-machine-form', 'nft-policy-key', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', 'col-3 offset-2'));
       document.querySelector('#nft-policy-ack').addEventListener('click', e => NftToolkit.NftCreator.handlePolicyAcknowledgement(e, '#nft-policy-ack', '#vending-machine-form'));
 
-      document.querySelector('#nft-files-upload').addEventListener('click', e => NftToolkit.VendingMachine.uploadMetadataFiles(e, '#nft-files-selector', '#nft-files-upload', '#blockfrost-api-key'));
+      document.querySelector('#nft-files-upload').addEventListener('click', e => {
+        var progressFunc = ((index, total, name) => console.log(`Uploading ${name}`));
+        NftToolkit.VendingMachine.uploadMetadataFiles(e, '#nft-files-selector', '#nft-files-upload', '#blockfrost-api-key')
+      });
 
       document.querySelector('#vending-machine-start').addEventListener('click',
         async e => {

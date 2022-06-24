@@ -45,7 +45,7 @@ async function validatePermissionsForRequiredAssets(blockfrostKey, numMetadata) 
   }
 }
 
-export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadButtonDom, blockfrostApiKeyDom) {
+export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadButtonDom, blockfrostApiKeyDom, progressFunc) {
   e && e.preventDefault();
 
   var metadataFiles = document.querySelector(metadataFilesDom)?.files;
@@ -64,8 +64,10 @@ export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadBut
     await validatePermissionsForRequiredAssets(blockfrostKey, metadataFiles.length);
 
     MetadataRef = [];
+    if (progressFunc) {
+      progressFunc(0, metadataFiles.length, '');
+    }
     for (var i = 0; i < metadataFiles.length; i++) {
-      console.log(`Uploading ${metadataFiles[i].name}...`);
       var readPromise = new Promise((resolve, reject) => {
         var reader = new FileReader();
         reader.onloadend = (event => resolve(event.target.result));
@@ -74,12 +76,17 @@ export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadBut
       });
       var metadataText = await readPromise;
       MetadataRef.push(JSON.parse(metadataText));
+
+      if (progressFunc) {
+        progressFunc(i + 1, metadataFiles.length, metadataFiles[i].name);
+      }
     }
 
     shortToast(`Successfully uploaded ${metadataFiles.length} metadata files!`);
     document.querySelector(metadataFilesDom).value = '';
   } catch (err) {
     shortToast(err);
+    throw err;
   } finally {
     document.querySelector(metadataUploadButtonDom).disabled = false;
   }
