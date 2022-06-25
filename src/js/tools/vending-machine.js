@@ -102,6 +102,7 @@ export async function startVending(
   try {
     var blockfrostKey = validated(document.querySelector(blockfrostApiKeyDom)?.value, 'Please enter a valid Blockfrost API key in the text box');
     validate(Selector.isWalletConnected(), 'Please connect a wallet before vending using "Connect Wallet" button');
+    validate(MetadataRef, 'Please upload metadata files before turning the vending machine on');
     await validatePermissionsForRequiredAssets(blockfrostKey, MetadataRef.length);
 
     var policyExpirationSlot = await NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostApiKeyDom, expirationDatetimeDom, nftPolicySlotDom);
