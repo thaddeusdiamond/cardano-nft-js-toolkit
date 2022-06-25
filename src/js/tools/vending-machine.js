@@ -141,33 +141,6 @@ export async function stopVending(e) {
   }
 }
 
-class RebateCalculator {
-
-  static COIN_SIZE = 0.0;             // Will change in next era to slightly lower fees
-  static MIN_UTXO_VALUE = 1000000;
-  static PIDSIZE = 28.0;
-  static SINGLE_POLICY = 1;
-  static UTXO_SIZE_WITHOUT_VAL = 27.0;
-
-  static ADA_ONLY_UTXO_SIZE = RebateCalculator.COIN_SIZE + RebateCalculator.UTXO_SIZE_WITHOUT_VAL;
-  static UTXO_BASE_RATIO = Math.ceil(RebateCalculator.MIN_UTXO_VALUE / RebateCalculator.ADA_ONLY_UTXO_SIZE);
-
-  static calculateRebate(numPolicies, numAssets, totalNameChars) {
-    if (!numAssets) {
-      return 0n;
-    }
-
-    var assetWords = Math.ceil(((numAssets * 12.0) + (totalNameChars) + (numPolicies * RebateCalculator.PIDSIZE)) / 8.0);
-    var utxoNativeTokenMultiplier = RebateCalculator.UTXO_SIZE_WITHOUT_VAL + (6 + assetWords);
-    return BigInt(RebateCalculator.UTXO_BASE_RATIO * utxoNativeTokenMultiplier);
-  }
-
-  constructor() {
-    throw 'This is a utility class, not to be instantiated';
-  }
-
-}
-
 class VendingMachine {
 
   static ADA_TO_LOVELACE = 1000000n;
@@ -275,16 +248,16 @@ class VendingMachine {
       var inputs = await this.lucid.inputsOf(utxo);
       var inputAddress = validated(inputs[0], `Could not find input for ${utxo.txHash}#${utxo.outputIndex}`);
       if (!numMints || !this.mintPrice) {
+        var overage = 0n;
         var changeAddress = inputAddress;
       } else {
         var overage = balance - (BigInt(numMints) * this.mintPrice);
-        var rebate = RebateCalculator.calculateRebate(RebateCalculator.SINGLE_POLICY, numMints, totalNameChars);
         var changeAddress = this.profitVaultAddr;
       }
 
       var txBuilder = this.lucid.newTx().collectFrom([utxo]);
-      if (numMints && this.mintPrice) {
-        txBuilder = txBuilder.payToAddress(inputAddress, {lovelace: (rebate + overage)});
+      if (overage) {
+        txBuilder = txBuilder.payToAddress(inputAddress, {lovelace: overage});
       }
       if (numMints) {
         txBuilder = txBuilder.attachMintingPolicy(mintingPolicy)
