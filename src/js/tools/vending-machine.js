@@ -9,6 +9,8 @@ import * as NftPolicy from "./nft-policy.js";
 import {shortToast, longToast} from "./toastify-utils.js";
 import {validate, validated} from "./utils.js";
 
+const POLICY_ID_REGEX = /^[0-9a-f]{56}$/;
+
 var VendingMachineInst = undefined;
 var MetadataRef = undefined;
 
@@ -68,14 +70,23 @@ export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadBut
       progressFunc(0, metadataFiles.length, '');
     }
     for (var i = 0; i < metadataFiles.length; i++) {
-      var readPromise = new Promise((resolve, reject) => {
-        var reader = new FileReader();
-        reader.onloadend = (event => resolve(event.target.result));
-        reader.onerror = (event => reject(event));
-        reader.readAsText(metadataFiles[i]);
-      });
-      var metadataText = await readPromise;
-      MetadataRef.push(JSON.parse(metadataText));
+      try {
+        var readPromise = new Promise((resolve, reject) => {
+          var reader = new FileReader();
+          reader.onloadend = (event => resolve(event.target.result));
+          reader.onerror = (event => reject(event));
+          reader.readAsText(metadataFiles[i]);
+        });
+        var metadataText = await readPromise;
+        var metadata = JSON.parse(metadataText);
+      } catch (err) {
+        throw `Error reading "${metadataFiles[i].name}": ${err}`;
+      }
+      validate(!metadata['721'], `Do not use the "721" identifier in your metadata, use the asset name directly ("${metadataFiles[i].name}")`);
+      var keys = Object.keys(metadata);
+      validate(keys.length == 1, `Please put exactly 1 asset in each file (${metadataFiles[i].name})`);
+      validate(!keys[0].match(POLICY_ID_REGEX), `Suspected policy ID "${keys[0]}" found, use the asset name directly ("${metadataFiles[i].name}")`);
+      MetadataRef.push(metadata);
 
       if (progressFunc) {
         progressFunc(i + 1, metadataFiles.length, metadataFiles[i].name);
@@ -86,6 +97,7 @@ export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadBut
     document.querySelector(metadataFilesDom).value = '';
   } catch (err) {
     shortToast(err);
+    MetadataRef = undefined;
     throw err;
   } finally {
     document.querySelector(metadataUploadButtonDom).disabled = false;
