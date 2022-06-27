@@ -1,4 +1,5 @@
 import {toHex, fromHex, C as LCore} from "lucid-cardano";
+import mime from "mime";
 
 import * as Secrets from "../secrets.js";
 import * as Selector from "./wallet-selector.js";
@@ -12,6 +13,7 @@ import {validate, validated} from "./utils.js";
 const CIP0025_VERSION = '1.0';
 const FILENAME_ID = 'local-file-name';
 const FILETYPE_ID = 'local-file-mimetype';
+const IMAGE_MIME_PREFIX = 'image/'
 const INPUT_TYPE = 'INPUT';
 const IPFS_LINK_ID = 'ipfs-io-link';
 const KEY_SUFFIX = 'name';
@@ -135,10 +137,10 @@ export function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
   NftStorage.uploadFromFileInput(nftStorageToken, file).then(cid => {
     var ipfsIoAnchor = `<a id=${IPFS_LINK_ID} target="_blank" rel="noopener noreferrer" href="https://ipfs.io/ipfs/${cid}">${cid}</a>`;
     var fileNameSpan = `<span id=${FILENAME_ID}>${file.name}</span>`;
-    var mediaTypeSpan = `<span id=${FILETYPE_ID}>${file.type}</span>`;
+    var mediaTypeSpan = `<span id=${FILETYPE_ID}>${mime.getType(file.name)}</span>`;
     ipfsDisplay.innerHTML = `${ipfsIoAnchor}<br/>(${fileNameSpan}&nbsp;[${mediaTypeSpan}])`;
     shortToast('Successfully uploaded your file using NFT.Storage!');
-  });
+  }).catch(err => shortToast(`An error occurred uploading to NFT.storage: ${err}`));
 }
 
 export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numTraits) {
@@ -155,6 +157,7 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
             validate(lucid, 'Your blockfrost key does not match the network of your wallet.');
 
             var nftName = validated(document.querySelector(nameDom)?.value, 'Please enter a name for NFT in the text box!');
+            var nftMetadata = generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTraits)
             var scriptSKeyText = validated(NftPolicy.NftPolicy.getKeyFromInputOrSpan(scriptSKeyDom), 'Must either generate or enter a valid secret key before proceeding');
             var scriptSKey = NftPolicy.NftPolicy.privateKeyFromCbor(scriptSKeyText);
             var policyKeyHash = toHex(scriptSKey.to_public().hash().to_bytes());
@@ -173,11 +176,6 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
             }
           }
 
-          // TODO: Support multiple assets (nftName and metadata will break here!)
-          var nftMetadata = generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTraits)
-          if (!nftMetadata) {
-            return;
-          }
           var chainMetadata = wrapMetadataFor(mintingPolicy.policyID, nftMetadata);
           var assetName = `${mintingPolicy.policyID}${toHex(nftName)}`
           var mintAssets = { [assetName]: 1 }
@@ -242,11 +240,22 @@ function generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTr
   var ipfsDisplayEls = document.querySelector(ipfsDisplayDom);
   var ipfsCidLink = ipfsDisplayEls.querySelector(`#${IPFS_LINK_ID}`);
   if (ipfsCidLink) {
-    cip0025Metadata['image'] = ipfsCidLink.textContent;
-  }
-  var ipfsMimeType = ipfsDisplayEls.querySelector(`#${FILETYPE_ID}`);
-  if (ipfsMimeType) {
-    cip0025Metadata['mediaType'] = ipfsMimeType.textContent;
+    var ipfsLink = validated(ipfsCidLink.textContent, 'There was an error retrieving IPFS link, did you upload the file correctly?');
+
+    var ipfsMediaTypeDom = ipfsDisplayEls.querySelector(`#${FILETYPE_ID}`);
+    var mediaType = validated(ipfsMediaTypeDom.textContent, 'Could not retrieve mime-type, unknown file uploaded which will cause rendering issues');
+
+    if (mediaType.startsWith(IMAGE_MIME_PREFIX)) {
+      cip0025Metadata['image'] = ipfsLink;
+      cip0025Metadata['mediaType'] = mediaType;
+    }
+
+    // TODO: Support multiple file uploads simultaneously in this array
+    cip0025Metadata['files'] = [{
+      name: nftName,
+      mediaType: mediaType,
+      src: ipfsLink
+    }];
   }
 
   for (var i = 1; i <= numTraits; i++) {
@@ -255,8 +264,7 @@ function generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTr
     if (traitKey) {
       cip0025Metadata[traitKey] = traitValue;
     } else if (traitValue) {
-      shortToast(`Missing name for trait '${traitValue}'`);
-      return undefined;
+      throw `Missing name for trait '${traitValue}'`;
     }
   }
   return {[nftName]: cip0025Metadata};
