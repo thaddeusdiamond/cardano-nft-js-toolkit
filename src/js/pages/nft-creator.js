@@ -2,13 +2,14 @@ import {toHex, fromHex, C as LCore} from "lucid-cardano";
 import mime from "mime";
 
 import * as Secrets from "../secrets.js";
-import * as Selector from "./wallet-selector.js";
-import * as LucidInst from "./lucid-inst.js";
-import * as NftStorage from "./nft-storage.js";
-import * as NftPolicy from "./nft-policy.js";
 
-import {shortToast, longToast} from "./toastify-utils.js";
-import {validate, validated} from "./utils.js";
+import * as CardanoDAppJs from "../third-party/cardano-dapp-js.js";
+import * as LucidInst from "../third-party/lucid-inst.js";
+import * as NftPolicy from "../nft-toolkit/nft-policy.js";
+import * as NftStorage from "../third-party/nft-storage.js";
+
+import {shortToast, longToast} from "../third-party/toastify-utils.js";
+import {validate, validated} from "../nft-toolkit/utils.js";
 
 const CIP0025_VERSION = '1.0';
 const FILENAME_ID = 'local-file-name';
@@ -148,10 +149,11 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
 
   try {
     var blockfrostKey = validated(document.querySelector(blockfrostDom).value, 'Please enter a valid Blockfrost API key in the text box');
-    validate(Selector.isWalletConnected(), 'Please connect a wallet before minting using "Connect Wallet" button');
+    var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
+    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before minting using "Connect Wallet" button');
 
     NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostDom, datetimeDom, slotDom).then(policyExpirationSlot => {
-      Selector.enableWallet(Selector.getConnectedWallet()).then(wallet => {
+      cardanoDApp.getConnectedWallet().then(wallet => {
         LucidInst.getLucidInstance(blockfrostKey).then(lucid => {
           try {
             validate(lucid, 'Your blockfrost key does not match the network of your wallet.');

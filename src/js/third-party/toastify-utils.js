@@ -1,3 +1,5 @@
+import Toastify from 'toastify-js';
+
 export function shortToast(message) {
   Toastify({text: message, duration: 3000}).showToast();
 }

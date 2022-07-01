@@ -1,8 +1,8 @@
-import * as Selector from "./wallet-selector.js";
-import * as LucidInst from "./lucid-inst.js";
+import * as CardanoDAppJs from "../third-party/cardano-dapp-js.js"
+import * as LucidInst from "../third-party/lucid-inst.js";
 
-import {shortToast, longToast} from "./toastify-utils.js";
-import {validate, validated} from "./utils.js";
+import {shortToast, longToast} from "../third-party/toastify-utils.js";
+import {validate, validated} from "../nft-toolkit/utils.js";
 
 const NEWLINE = /\r\n|\n/;
 
@@ -41,8 +41,9 @@ async function readBulkPaymentFile(filesDom) {
 
 export async function generateTransaction(e, blockfrostKeyDom, filesDom) {
   try {
-    validate(Selector.isWalletConnected(), 'Please connect a wallet before minting using "Connect Wallet" button');
-    var wallet = await Selector.enableWallet(Selector.getConnectedWallet());
+    var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
+    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before minting using "Connect Wallet" button');
+    var wallet = await cardanoDApp.getConnectedWallet();
 
     var blockfrostKey = validated(document.querySelector(blockfrostKeyDom).value, 'Please enter your key from blockfrost.io');
     var lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'There was an error connecting to blockfrost (is your wallet the right network?)');

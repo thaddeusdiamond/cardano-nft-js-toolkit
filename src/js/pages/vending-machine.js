@@ -2,12 +2,13 @@ import arrayShuffle from 'array-shuffle';
 import {toHex} from "lucid-cardano";
 
 import * as Secrets from "../secrets.js";
-import * as Selector from "./wallet-selector.js";
-import * as LucidInst from "./lucid-inst.js";
-import * as NftPolicy from "./nft-policy.js";
 
-import {shortToast, longToast} from "./toastify-utils.js";
-import {validate, validated} from "./utils.js";
+import * as CardanoDAppJs from "../third-party/cardano-dapp-js.js";
+import * as LucidInst from "../third-party/lucid-inst.js";
+import * as NftPolicy from "../nft-toolkit/nft-policy.js";
+
+import {shortToast, longToast} from "../third-party/toastify-utils.js";
+import {validate, validated} from "../nft-toolkit/utils.js";
 
 const POLICY_ID_REGEX = /^[0-9a-f]{56}$/;
 

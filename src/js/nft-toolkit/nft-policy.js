@@ -1,8 +1,8 @@
 import {toHex, fromHex, C as LCore} from "lucid-cardano";
 
-import * as LucidInst from "./lucid-inst.js";
+import * as LucidInst from "../third-party/lucid-inst.js";
 
-import {validate, validated} from "./utils.js";
+import {validate, validated} from "../nft-toolkit/utils.js";
 
 export const METADATA_KEY = '721';
 

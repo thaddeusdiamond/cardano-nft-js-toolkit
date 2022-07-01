@@ -1,5 +1,5 @@
-import {shortToast, longToast} from "./toastify-utils.js";
-import {validate, validated} from "./utils.js";
+import {shortToast, longToast} from "../third-party/toastify-utils.js";
+import {validate, validated} from "../nft-toolkit/utils.js";
 
 const ADA_SYMBOL_HTML = '&#x20B3;';
 const ADA_SYMBOL_URI = '%E2%82%B3';

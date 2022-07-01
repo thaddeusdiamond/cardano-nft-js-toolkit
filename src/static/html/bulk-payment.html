@@ -1,10 +1,10 @@
 <html>
   <head>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.2.1/dist/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
 
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/cardano-dapp-js@1.0.3/dist/cardano-wallet-picker.css" rel="stylesheet" integrity="sha384-jeqm08LTVeNbS97UWy4EXaCioonM70aAFwSpoQITuPKgc53EI0+XfxoG+0hwMLqj" crossorigin="anonymous" type="text/css">
 
     <script type="text/javascript" src="nft-toolkit.js"></script>
     <link rel="stylesheet" href="bulk-payment.css" />
@@ -54,8 +54,7 @@
 
 <script type="module">
   NftToolkit.then(NftToolkit => {
-    NftToolkit.WalletSelector.buildDropdownDom("#wallet-container");
-    NftToolkit.WalletSelector.configureDropdownListeners();
+    NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container');
 
     document.querySelector("#payment-terms").addEventListener("click", e => {
       e && e.preventDefault();
