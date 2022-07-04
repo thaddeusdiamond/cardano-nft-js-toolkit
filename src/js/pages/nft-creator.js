@@ -10,6 +10,7 @@ import * as NftStorage from "../third-party/nft-storage.js";
 
 import {shortToast, longToast} from "../third-party/toastify-utils.js";
 import {validate, validated} from "../nft-toolkit/utils.js";
+import {RebateCalculator} from "../nft-toolkit/rebate-calculator.js";
 
 const CIP0025_VERSION = '1.0';
 const FILENAME_ID = 'local-file-name';
@@ -18,6 +19,7 @@ const IMAGE_MIME_PREFIX = 'image/'
 const INPUT_TYPE = 'INPUT';
 const IPFS_LINK_ID = 'ipfs-io-link';
 const KEY_SUFFIX = 'name';
+const LOVELACE = 'lovelace';
 const SPAN_TYPE = 'SPAN';
 const VALUE_SUFFIX = 'value';
 
@@ -144,7 +146,7 @@ export function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
   }).catch(err => shortToast(`An error occurred uploading to NFT.storage: ${err}`));
 }
 
-export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numTraits) {
+export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numTraits, numMintsDom) {
   e && e.preventDefault();
 
   try {
@@ -165,6 +167,10 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
             var policyKeyHash = toHex(scriptSKey.to_public().hash().to_bytes());
             var nftPolicy = new NftPolicy.NftPolicy(policyExpirationSlot, scriptSKey, policyKeyHash);
             var mintingPolicy = nftPolicy.getMintingPolicy();
+            var numMints = validated(parseInt(document.querySelector(numMintsDom).value), 'Please enter the number of NFTs you would like to mint');
+            if (numMints < 1 || numMints > Secrets.MAX_QUANTITY) {
+              throw `Attempting to mint invalid number of NFTs (${numMints})`;
+            }
           } catch (error) {
             shortToast(error);
             return;
@@ -180,9 +186,12 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
 
           var chainMetadata = wrapMetadataFor(mintingPolicy.policyID, nftMetadata);
           var assetName = `${mintingPolicy.policyID}${toHex(nftName)}`
-          var mintAssets = { [assetName]: 1 }
+          var mintAssets = { [assetName]: numMints }
 
-          var domToClear = getDomElementsToClear(traitsPrefix, numTraits, nameDom, fileDom, ipfsDisplayDom);
+          var rebate = RebateCalculator.calculateRebate(RebateCalculator.SINGLE_POLICY, numMints, assetName.length);
+          var mintVend = { [LOVELACE]: rebate, [assetName]: numMints }
+
+          var domToClear = getDomElementsToClear(traitsPrefix, numTraits, nameDom, fileDom, ipfsDisplayDom, numMintsDom);
 
           lucid.selectWallet(wallet);
           lucid.wallet.address().then(address => {
@@ -216,8 +225,7 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
                                    .attachMintingPolicy(mintingPolicy)
                                    .attachMetadata(NftPolicy.METADATA_KEY, chainMetadata)
                                    .mintAssets(mintAssets)
-                                   .payToAddress(address, mintAssets)
-                                   .payToAddress(address, requiredAssets);
+                                   .payToAddress(address, mintVend);
               if (policyExpirationSlot) {
                 txBuilder = txBuilder.validTo(lucid.utils.slotToUnixTime(policyExpirationSlot));
               }
@@ -286,10 +294,7 @@ function getDomElementsToClear(traitsPrefix, numTraits, ...otherDomElements) {
 function signAndSubmitTxn(tx, scriptSKey, domToClear) {
   tx.signWithPrivateKey(scriptSKey.to_bech32()).sign().complete().then(signedTx =>
     signedTx.submit().then(txHash => {
-      Toastify({
-        text: `Successfully sent minting tx: ${txHash}!`,
-        duration: 6000
-      }).showToast();
+      longToast(`Successfully sent minting tx: ${txHash}!`);
       domToClear.forEach(clearDomElement);
     })
   ).catch(toastMintError);

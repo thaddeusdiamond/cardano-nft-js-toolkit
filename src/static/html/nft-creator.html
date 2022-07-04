@@ -93,7 +93,8 @@
               <div class="col-8"><input type="text" id="nft-trait-value-8" placeholder="Trait 8 Value..." class="col-12" disabled/></div>
             </div>
             <div class="row text-center">
-              <input id="nft-mint-item" type="submit" value="Mint Now!" class="offset-4 col-4" disabled>
+              <input id="nft-mint-number" type="number" placeholder="Quantity to Mint" class="offset-3 col-3" disabled>
+              <input id="nft-mint-item" type="submit" value="Mint Now!" class="ml-1 col-3" disabled>
             </div>
           </div>
         </div>
@@ -111,7 +112,7 @@
 
       document.querySelector("#nft-file-upload").addEventListener("click", e => NftToolkit.NftCreator.uploadToIpfs(e, '#nft-storage-key', '#nft-file-selector', '#nft-ipfs-display'));
 
-      document.querySelector("#nft-mint-item").addEventListener("click", e => NftToolkit.NftCreator.performMintTxn(e, '#blockfrost-api-key', '#nft-name', '#expiration-datetime', '#nft-policy-slot', '#nft-policy-key', '#nft-ipfs-display', '#nft-file-selector', '#nft-trait', 8));
+      document.querySelector("#nft-mint-item").addEventListener("click", e => NftToolkit.NftCreator.performMintTxn(e, '#blockfrost-api-key', '#nft-name', '#expiration-datetime', '#nft-policy-slot', '#nft-policy-key', '#nft-ipfs-display', '#nft-file-selector', '#nft-trait', 8, '#nft-mint-number'));
     })
   </script>
 

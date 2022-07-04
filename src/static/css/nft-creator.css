@@ -1,2 +1,6 @@
 @import 'common.css';
 @import 'dropdown.css';
+
+#nft-mint-item {
+  margin-left: 10px;
+}
