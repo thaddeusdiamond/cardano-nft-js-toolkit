@@ -18,6 +18,10 @@ export class NftPolicy {
     var lucidPromise = validated(LucidInst.getLucidInstance(blockfrostKey), 'Please connect wallet to generate slot value');
 
     return lucidPromise.then(lucid => {
+      if (lucid === undefined) {
+        throw 'Mismatch between blockfrost key and wallet network';
+      }
+
       var slotInput = document.querySelector(slotDisplayDom)?.value;
       if (slotInput) {
         var slotNum = parseInt(slotInput);
