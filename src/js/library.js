@@ -1,6 +1,7 @@
 export * as Secrets from "./secrets.js";
 
 export * as CardanoDAppJs from "./third-party/cardano-dapp-js.js";
+export * as LucidInst from "./third-party/lucid-inst.js";
 
 export * as DropPayment from "./pages/drop-payment.js";
 export * as BulkPayment from "./pages/bulk-payment.js";
