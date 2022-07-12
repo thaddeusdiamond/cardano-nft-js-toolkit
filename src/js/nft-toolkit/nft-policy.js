@@ -12,6 +12,7 @@ const SPAN_TYPE = 'SPAN';
 export class NftPolicy {
 
   static CBOR_PREFIX = '5820';
+  static MAX_METADATA_LEN = 64;
 
   static updateDatetimeSlotSpan(e, blockfrostDom, datePickerDom, slotDisplayDom) {
     var blockfrostKey = validated(document.querySelector(blockfrostDom).value, 'Slot value needs Blockfrost key to be computed');

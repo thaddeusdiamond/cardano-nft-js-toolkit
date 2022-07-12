@@ -11,12 +11,14 @@ import {shortToast, longToast} from "../third-party/toastify-utils.js";
 import {validate, validated} from "../nft-toolkit/utils.js";
 
 const POLICY_ID_REGEX = /^[0-9a-f]{56}$/;
+const IPFS_START = 'ipfs://'
+const INVALID_IPFS_START = `${IPFS_START}bafy`;
 
 var VendingMachineInst = undefined;
 var MetadataRef = undefined;
 
-async function validatePermissionsForRequiredAssets(blockfrostKey, numMetadata) {
-  var wallet = validated(await Selector.enableWallet(Selector.getConnectedWallet()), 'Please connect a wallet using "Connect Wallet"');
+async function validatePermissionsForRequiredAssets(cardanoDApp, blockfrostKey, numMetadata) {
+  var wallet = validated(await cardanoDApp.getConnectedWallet(), 'Please connect a wallet using "Connect Wallet"');
   var lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'Please check that your wallet network matches the blockfrost key network');
   lucid.selectWallet(wallet);
 
@@ -60,17 +62,19 @@ export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadBut
     validate(!VendingMachineInst || !VendingMachineInst.isRunning, 'Cannot upload new metadata files while your vending machine is running!');
     document.querySelector(metadataUploadButtonDom).disabled = true;
 
-    validate(Selector.isWalletConnected(), 'Please connect a wallet before uploading metadata using "Connect Wallet" button');
-    var wallet = await Selector.enableWallet(Selector.getConnectedWallet());
+    var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
+    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before uploading metadata using "Connect Wallet" button');
+    var wallet = await cardanoDApp.getConnectedWallet();
 
     var blockfrostKey = validated(document.querySelector(blockfrostApiKeyDom).value, 'Please enter a blockfrost key before uploading metadata');
-    await validatePermissionsForRequiredAssets(blockfrostKey, metadataFiles.length);
+    await validatePermissionsForRequiredAssets(cardanoDApp, blockfrostKey, metadataFiles.length);
 
     MetadataRef = [];
     if (progressFunc) {
       progressFunc(0, metadataFiles.length, '');
     }
     for (var i = 0; i < metadataFiles.length; i++) {
+      const metadataFilename = metadataFiles[i].name;
       try {
         var readPromise = new Promise((resolve, reject) => {
           var reader = new FileReader();
@@ -81,12 +85,13 @@ export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadBut
         var metadataText = await readPromise;
         var metadata = JSON.parse(metadataText);
       } catch (err) {
-        throw `Error reading "${metadataFiles[i].name}": ${err}`;
+        throw `Error reading "${metadataFilename}": ${err}`;
       }
       validate(!metadata['721'], `Do not use the "721" identifier in your metadata, use the asset name directly ("${metadataFiles[i].name}")`);
       var keys = Object.keys(metadata);
       validate(keys.length == 1, `Please put exactly 1 asset in each file (${metadataFiles[i].name})`);
       validate(!keys[0].match(POLICY_ID_REGEX), `Suspected policy ID "${keys[0]}" found, use the asset name directly ("${metadataFiles[i].name}")`);
+      validateAssetMetadata(keys[0], metadata[keys[0]], metadataFilename);
       MetadataRef.push(metadata);
 
       if (progressFunc) {
@@ -102,6 +107,17 @@ export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadBut
     throw err;
   } finally {
     document.querySelector(metadataUploadButtonDom).disabled = false;
+  }
+}
+
+function validateAssetMetadata(key, metadataVal, metadataFilename) {
+  if (typeof(metadataVal) === 'string') {
+    validate(!metadataVal.startsWith(INVALID_IPFS_START), `Using invalid IPFS link starting with ${INVALID_IPFS_START} in '${metadataFilename}' (remove '${IPFS_START}' to make the metadata work)`);
+    validate(metadataVal.length <= NftPolicy.NftPolicy.MAX_METADATA_LEN, `Metadata value for ${key} (file '${metadataFilename}') is greater than Cardano will allow (max of ${NftPolicy.NftPolicy.MAX_METADATA_LEN} chars)`);
+    return;
+  }
+  for (const subKey of Object.keys(metadataVal)) {
+    validateAssetMetadata(subKey, metadataVal[subKey], metadataFilename);
   }
 }
 

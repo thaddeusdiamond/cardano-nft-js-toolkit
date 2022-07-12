@@ -272,6 +272,7 @@ function generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTr
     var traitKey = document.querySelector(`${traitsPrefix}-${KEY_SUFFIX}-${i}`).value;
     var traitValue = document.querySelector(`${traitsPrefix}-${VALUE_SUFFIX}-${i}`).value;
     if (traitKey) {
+      validate(traitValue.length <= NftPolicy.NftPolicy.MAX_METADATA_LEN, `Metadata value for ${traitKey} is greater than Cardano will allow (max of ${NftPolicy.NftPolicy.MAX_METADATA_LEN} chars)`);
       cip0025Metadata[traitKey] = traitValue;
     } else if (traitValue) {
       throw `Missing name for trait '${traitValue}'`;
