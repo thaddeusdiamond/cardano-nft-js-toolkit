@@ -93,8 +93,7 @@
 
   <script type="module">
     NftToolkit.then(NftToolkit => {
-      NftToolkit.WalletSelector.buildDropdownDom("#wallet-container");
-      NftToolkit.WalletSelector.configureDropdownListeners();
+      NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container');
 
       document.querySelector("#nft-policy-create").addEventListener("click", e => NftToolkit.NftCreator.generatePolicyScriptAndKey(e, '#nft-policy-ack', '#blockfrost-api-key', 'nft-policy-key', 'expiration-datetime', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', '', 'col-4'));
       document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#vending-machine-form', 'nft-policy-key', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', 'col-3 offset-2'));

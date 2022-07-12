@@ -129,10 +129,11 @@ export async function startVending(
   e && e.preventDefault();
 
   try {
+    var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
     var blockfrostKey = validated(document.querySelector(blockfrostApiKeyDom)?.value, 'Please enter a valid Blockfrost API key in the text box');
-    validate(Selector.isWalletConnected(), 'Please connect a wallet before vending using "Connect Wallet" button');
+    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before vending using "Connect Wallet" button');
     validate(MetadataRef, 'Please upload metadata files before turning the vending machine on');
-    await validatePermissionsForRequiredAssets(blockfrostKey, MetadataRef.length);
+    await validatePermissionsForRequiredAssets(cardanoDApp, blockfrostKey, MetadataRef.length);
 
     var policyExpirationSlot = await NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostApiKeyDom, expirationDatetimeDom, nftPolicySlotDom);
     var policySKeyText = validated(NftPolicy.NftPolicy.getKeyFromInputOrSpan(nftPolicyKeyDom), 'Must either generate or enter a valid secret key before proceeding');
@@ -308,9 +309,9 @@ class VendingMachine {
             signedTx.submit().then((txHash => {
               this.log(`Signed transaction submitted as ${txHash}`);
               shortToast(`Successfully processed a new customer order!`);
-            }).bind(this));
-          }).bind(this));
-      });
+            }).bind(this)).catch(err => longToast(err));
+          }).bind(this)).catch(err => longToast(err));
+      }).catch(err => longToast(err));
     }
 
     setTimeout((_ => this.vend()).bind(this), VendingMachine.VENDING_INTERVAL);
