@@ -185,7 +185,7 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
           }
 
           var chainMetadata = wrapMetadataFor(mintingPolicy.policyID, nftMetadata);
-          var assetName = `${mintingPolicy.policyID}${toHex(nftName)}`
+          var assetName = `${mintingPolicy.policyID}${toHex(getTextEncoder().encode(nftName))}`
           var mintAssets = { [assetName]: numMints }
 
           var rebate = RebateCalculator.calculateRebate(RebateCalculator.SINGLE_POLICY, numMints, assetName.length);
@@ -238,6 +238,10 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
   } catch (err) {
     shortToast(err);
   }
+}
+
+function getTextEncoder() {
+  return new TextEncoder('UTF-8');
 }
 
 function wrapMetadataFor(policyID, innerMetadata) {

@@ -179,6 +179,10 @@ class VendingMachine {
   static NO_LIMIT = 100;
   static VENDING_INTERVAL = 5000;
 
+  static getTextEncoder() {
+    return new TextEncoder('UTF-8');
+  }
+
   constructor(metadata, nftPolicy, blockfrostKey, vendingMachineAddrDom, vendingMachineSkeyDom, profitVaultAddrDom, mintPriceDom, singleVendMaxDom, vendRandomlyDom, metadataFilesDom, outputDom) {
     this.metadata = metadata;
     this.nftPolicy = nftPolicy;
@@ -269,7 +273,7 @@ class VendingMachine {
         validate(Object.keys(nftMetadata).length == 1, `Only 1 asset name permitted per file, found ${Object.keys(nftMetadata)}`);
 
         var nftName = Object.keys(nftMetadata)[0];
-        var assetName = `${mintingPolicy.policyID}${toHex(nftName)}`;
+        var assetName = `${mintingPolicy.policyID}${toHex(VendingMachine.getTextEncoder().encode(nftName))}`;
         mintAssets[assetName] = 1;
         mergedMetadata[nftName] = nftMetadata;
         totalNameChars += nftName.length;
