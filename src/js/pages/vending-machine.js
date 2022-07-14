@@ -275,7 +275,7 @@ class VendingMachine {
         var nftName = Object.keys(nftMetadata)[0];
         var assetName = `${mintingPolicy.policyID}${toHex(VendingMachine.getTextEncoder().encode(nftName))}`;
         mintAssets[assetName] = 1;
-        mergedMetadata[nftName] = nftMetadata;
+        mergedMetadata[nftName] = nftMetadata[nftName];
         totalNameChars += nftName.length;
       }
 
