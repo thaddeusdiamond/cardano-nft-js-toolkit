@@ -1,5 +1,5 @@
 import arrayShuffle from 'array-shuffle';
-import {toHex} from "lucid-cardano";
+import {toHex, networkToId, C as LCore} from "lucid-cardano";
 
 import * as Secrets from "../secrets.js";
 
@@ -8,7 +8,7 @@ import * as LucidInst from "../third-party/lucid-inst.js";
 import * as NftPolicy from "../nft-toolkit/nft-policy.js";
 
 import {shortToast, longToast} from "../third-party/toastify-utils.js";
-import {validate, validated} from "../nft-toolkit/utils.js";
+import {validate, validated, createTextInput, createTextareaInput} from "../nft-toolkit/utils.js";
 
 const POLICY_ID_REGEX = /^[0-9a-f]{56}$/;
 const IPFS_START = 'ipfs://'
@@ -16,6 +16,74 @@ const INVALID_IPFS_START = `${IPFS_START}bafy`;
 
 var VendingMachineInst = undefined;
 var MetadataRef = undefined;
+var HasAcknowledgedKeyGeneration = false;
+
+export async function generateVmKeyAndAddr(e, vmAckDom, blockfrostDom, privKeyId, addrId, buttonsDom, displayDom, containerClassName) {
+  e && e.preventDefault();
+  try {
+    var blockfrostKey = validated(document.querySelector(blockfrostDom).value, 'Vending Machine address needs Blockfrost key to be generated');
+    var lucidPromise = validated(LucidInst.getLucidInstance(blockfrostKey), 'Please connect wallet to generate vending machine address');
+    var lucid = validated(await lucidPromise, 'Mismatch between blockfrost key and wallet network');
+
+    var privateKey = LCore.PrivateKey.generate_ed25519();
+    var vmKeyCbor = NftPolicy.NftPolicy.privateKeyToCbor(privateKey);
+    var vmAddr = LCore.EnterpriseAddress.new(
+      networkToId(lucid.network),
+      LCore.StakeCredential.from_keyhash(privateKey.to_public().hash())
+    )
+
+    var addrContainer = document.createElement('div');
+    addrContainer.className = containerClassName;
+    var addrSpan = document.createElement('span');
+    addrSpan.textContent = vmAddr.to_address().to_bech32();
+    var addrHidden = document.createElement('input');
+    addrHidden.type = 'hidden';
+    addrHidden.id = addrId;
+    addrHidden.value = vmAddr.to_address().to_bech32();
+    addrContainer.append(addrSpan, addrHidden);
+
+    var privKeyContainer = document.createElement('div');
+    privKeyContainer.className = containerClassName;
+    var privKeySpan = document.createElement('span');
+    privKeySpan.textContent = `(${vmKeyCbor})`;
+    var privKeyHidden = document.createElement('input');
+    privKeyHidden.type = 'hidden';
+    privKeyHidden.id = privKeyId;
+    privKeyHidden.value = vmKeyCbor;
+    privKeyContainer.append(privKeySpan, privKeyHidden);
+
+    document.querySelector(buttonsDom).style.display = 'none';
+    document.querySelector(displayDom).replaceChildren(addrContainer, privKeyContainer);
+
+    alert('REMEMBER: YOU MUST COPY DOWN THE PRIVATE KEY AND ADDRESS OF THE VENDING MACHINE YOU GENERATED!');
+    window.onbeforeunload = (_ => "Have you written down your private key and address?");
+
+    document.querySelector(vmAckDom).style.display = 'block';
+  } catch (err) {
+    shortToast(err);
+    MetadataRef = undefined;
+    throw err;
+  }
+}
+
+export function showInputForExistingVm(e, vmKeyId, vmAddrId, buttonsDom, displayDom, classNames) {
+  e && e.preventDefault();
+
+  document.querySelector(buttonsDom).style.display = 'none';
+  document.querySelector(displayDom).replaceChildren(
+    createTextInput(vmAddrId, classNames, '(Required) Enter Vending Machine Address...'),
+    createTextareaInput(vmKeyId, classNames, '(Required) Enter Vending Machine Secret Key (Begins with 5820)...')
+  );
+
+  HasAcknowledgedKeyGeneration = true;
+}
+
+export function handlePolicyAcknowledgement(e, vmAckDom){
+  e && e.preventDefault();
+  HasAcknowledgedKeyGeneration = true;
+  document.querySelector(vmAckDom).style.display = 'none';
+}
+
 
 async function validatePermissionsForRequiredAssets(cardanoDApp, blockfrostKey, numMetadata) {
   var wallet = validated(await cardanoDApp.getConnectedWallet(), 'Please connect a wallet using "Connect Wallet"');
@@ -133,6 +201,7 @@ export async function startVending(
     var blockfrostKey = validated(document.querySelector(blockfrostApiKeyDom)?.value, 'Please enter a valid Blockfrost API key in the text box');
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before vending using "Connect Wallet" button');
     validate(MetadataRef, 'Please upload metadata files before turning the vending machine on');
+    validate(HasAcknowledgedKeyGeneration, 'Please acknowledge you have written down your generated vending machine keys and address before proceeding');
     await validatePermissionsForRequiredAssets(cardanoDApp, blockfrostKey, MetadataRef.length);
 
     var policyExpirationSlot = await NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostApiKeyDom, expirationDatetimeDom, nftPolicySlotDom);

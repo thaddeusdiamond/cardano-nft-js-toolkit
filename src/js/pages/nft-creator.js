@@ -9,7 +9,7 @@ import * as NftPolicy from "../nft-toolkit/nft-policy.js";
 import * as NftStorage from "../third-party/nft-storage.js";
 
 import {shortToast, longToast} from "../third-party/toastify-utils.js";
-import {validate, validated} from "../nft-toolkit/utils.js";
+import {validate, validated, createTextInput} from "../nft-toolkit/utils.js";
 import {RebateCalculator} from "../nft-toolkit/rebate-calculator.js";
 
 const CIP0025_VERSION = '1.0';
@@ -94,15 +94,6 @@ export function showInputForExistingKey(e, formDom, policyKeyId, policySlotId, b
   );
 
   enableRecursively(document.querySelector(formDom));
-}
-
-function createTextInput(id, cssClass, placeholder) {
-  var input = document.createElement('input');
-  input.type = 'text';
-  input.id = id;
-  input.className = cssClass;
-  input.placeholder = placeholder;
-  return input;
 }
 
 export function handlePolicyAcknowledgement(e, policyAckDom, formDom){
