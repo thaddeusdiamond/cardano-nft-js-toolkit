@@ -249,7 +249,7 @@ class VendingMachine {
   static LOVELACE = 'lovelace';
   static KEYS_TO_STRINGIFY = ['', 'blockfrostKey', 'mintPrice', 'nftPolicy', 'slot', 'pubKeyHash', 'profitVaultAddr', 'singleVendMax', 'vendRandomly', 'vendingMachineAddr'];
   static NO_LIMIT = 100;
-  static VENDING_INTERVAL = 5000;
+  static VENDING_INTERVAL = 15000;
 
   static getTextEncoder() {
     return new TextEncoder('UTF-8');
