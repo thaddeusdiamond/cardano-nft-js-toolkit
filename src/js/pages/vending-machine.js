@@ -138,6 +138,7 @@ export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadBut
     await validatePermissionsForRequiredAssets(cardanoDApp, blockfrostKey, metadataFiles.length);
 
     MetadataRef = [];
+    var knownKeys = [];
     if (progressFunc) {
       progressFunc(0, metadataFiles.length, '');
     }
@@ -155,15 +156,17 @@ export async function uploadMetadataFiles(e, metadataFilesDom, metadataUploadBut
       } catch (err) {
         throw `Error reading "${metadataFilename}": ${err}`;
       }
-      validate(!metadata['721'], `Do not use the "721" identifier in your metadata, use the asset name directly ("${metadataFiles[i].name}")`);
+      validate(!metadata['721'], `Do not use the "721" identifier in your metadata, use the asset name directly ("${metadataFilename}")`);
       var keys = Object.keys(metadata);
-      validate(keys.length == 1, `Please put exactly 1 asset in each file (${metadataFiles[i].name})`);
-      validate(!keys[0].match(POLICY_ID_REGEX), `Suspected policy ID "${keys[0]}" found, use the asset name directly ("${metadataFiles[i].name}")`);
+      validate(keys.length == 1, `Please put exactly 1 asset in each file (${metadataFilename})`);
+      validate(!keys[0].match(POLICY_ID_REGEX), `Suspected policy ID "${keys[0]}" found, use the asset name directly ("${metadataFilename}")`);
+      validate(!knownKeys.includes(keys[0]), `Encountered duplicate key ${keys[0]} among the metadata files ("${metadataFilename}")`)
+      knownKeys.push(keys[0]);
       validateAssetMetadata(keys[0], metadata[keys[0]], metadataFilename);
       MetadataRef.push(metadata);
 
       if (progressFunc) {
-        progressFunc(i + 1, metadataFiles.length, metadataFiles[i].name);
+        progressFunc(i + 1, metadataFiles.length, metadataFilename);
       }
     }
 
