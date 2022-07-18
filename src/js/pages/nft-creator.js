@@ -62,6 +62,7 @@ export function generatePolicyScriptAndKey(e, policyAckDom, blockfrostDom, privK
   datetimeHeader.className = headerClassName;
   var datetimeLocal = document.createElement('input');
   datetimeLocal.id = datetimeId;
+  datetimeLocal.min = new Date().toISOString().split('.')[0];
   datetimeLocal.type = 'datetime-local';
   datetimeContainer.append(datetimeHeader, datetimeLocal);
   datetimeLocal.addEventListener('change', e => NftPolicy.NftPolicy.updateDatetimeSlotSpan(e, blockfrostDom, `#${datetimeId}`, `#${slotId}`));
