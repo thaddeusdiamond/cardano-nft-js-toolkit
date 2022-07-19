@@ -195,7 +195,7 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
 
           lucid.selectWallet(wallet);
           lucid.wallet.address().then(address => {
-            lucid.utxosAt(address).then(requiredPolicyUtxos => {
+            lucid.wallet.getUtxos().then(requiredPolicyUtxos => {
               var requiredAssets = {};
               if (lucid.network === 'Mainnet') {
                 for (var requiredPolicyUtxo of requiredPolicyUtxos) {

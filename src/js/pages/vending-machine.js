@@ -21,7 +21,7 @@ async function validatePermissionsForRequiredAssets(blockfrostKey, numMetadata) 
   lucid.selectWallet(wallet);
 
   var address = await lucid.wallet.address();
-  var requiredPolicyUtxos = await lucid.utxosAt(address);
+  var requiredPolicyUtxos = await lucid.wallet.getUtxos();
 
   var requiredAssets = {};
   if (lucid.network === 'Mainnet') {
