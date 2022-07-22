@@ -71,7 +71,7 @@ export function generatePolicyScriptAndKey(e, policyAckDom, blockfrostDom, privK
   slotContainer.className = containerClassName;
   var slotHeader = document.createElement('h4');
   slotHeader.className = headerClassName;
-  slotHeader.textContent = 'Slot'
+  slotHeader.textContent = 'Slot (Auto-Generated Below)'
   var slotSpan = document.createElement('span');
   slotSpan.id = slotId;
   slotContainer.append(slotHeader, slotSpan);
