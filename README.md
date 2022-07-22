@@ -12,13 +12,27 @@ Prerequisites:
 
 You must update your secrets in a root file called `src/js/secrets.js`. The file should contain the following format:
 
-    export const PAYMENT_ADDR = "<PAYMENT_ADDR>"
+    // Blockfrost.io keys (used across pages)
     export const BLOCKFROST_PROJ = "<BLOCKFROST_PROJ>"
+    // Used in drop-payment.js
+    export const PAYMENT_ADDR = "<PAYMENT_ADDR>"
     export const MINT_PRICE = <MINT_PRICE_IN_LOVELACE>;
     export const LOWER_LIMIT = <MIN_TO_MINT_USUALLY_ONE>;
     export const UPPER_LIMIT = <MAX_TO_MINT_AT_ONCE>;
+    // Used in nft-creator.js
+    export const MAX_QUANTITY = <MAX_QUANTITY_OF_FTS_FOR_1OF1_MINTER>;
+    export const REQUIRED_POLICY_KEY = "<GATEKEEPING_NFT_POLICY>";
+    // Used in vending-machine.js
+    export const REQUIRED_POLICY_MIN = <MIN_TO_USE_1OF1_MINTER>;
+    export const REQUIRED_VENDING_MACHINE_RATIO = <RATIO_FOR_AMOUNT_TO_VEND_PER_GATEKEEPING_NFT>;
 
 :warning: DO NOT COMMIT SECRETS TO THIS REPOSITORY!!
+
+Before your very first run (or any time you change the dependencies), you MUST run:
+
+    npm i
+
+To install all the required dependencies.
 
 The sample module in ``src/js/tools/drop-payment.js`` contains functions that are bound to the DOM in ``src/static/drop-payment.html``. To build the required JS modules into a single webpack JS, run:
 
