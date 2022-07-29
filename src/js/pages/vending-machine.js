@@ -248,6 +248,8 @@ class VendingMachine {
   static ADA_TO_LOVELACE = 1000000n;
   static LOVELACE = 'lovelace';
   static KEYS_TO_STRINGIFY = ['', 'blockfrostKey', 'mintPrice', 'nftPolicy', 'slot', 'pubKeyHash', 'profitVaultAddr', 'singleVendMax', 'vendRandomly', 'vendingMachineAddr'];
+  static MIN_MINT_PRICE_LOVELACE = 5000000n;
+  static MIN_MINT_PRICE_ADA = VendingMachine.MIN_MINT_PRICE_LOVELACE / VendingMachine.ADA_TO_LOVELACE
   static NO_LIMIT = 100;
   static VENDING_INTERVAL = 15000;
 
@@ -283,6 +285,9 @@ class VendingMachine {
 
     validate(this.mintPriceStr, 'No default values allowed for mint price.  For free mints, explicitly type 0');
     this.mintPrice = VendingMachine.ADA_TO_LOVELACE * BigInt(this.mintPriceStr);
+    if (this.mintPrice) {
+      validate(this.mintPrice >= VendingMachine.MIN_MINT_PRICE_LOVELACE, `Mints less than ${VendingMachine.MIN_MINT_PRICE_ADA}ADA are not supported`)
+    }
 
     if (!this.mintPrice) {
       validate(this.singleVendMax, 'Must explicitly specify single vend max for free mints');
