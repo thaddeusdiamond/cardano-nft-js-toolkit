@@ -14,27 +14,15 @@ export function getLucidInstance(blockfrostKey) {
   }
 
   return getNetworkId().then(networkId => {
-    var lucidApi;
-    var lucidNetwork;
-    if (networkId == MAINNET) {
-        lucidApi = 'https://cardano-mainnet.blockfrost.io/api/v0';
-        lucidNetwork = 'Mainnet';
-    } else if (networkId == TESTNET) {
-        lucidApi = 'https://cardano-testnet.blockfrost.io/api/v0';
-        lucidNetwork = 'Testnet';
-    } else {
-      throw `Unknown network ID returned by lucid: ${networkId}`;
-    }
-
     if (!blockfrostKey.startsWith(LUCID_NETWORK_NAMES[networkId])) {
       return undefined;
     }
-
-    return Lucid.new(new Blockfrost(lucidApi, blockfrostKey), lucidNetwork);
+    var blockfrostParams = getBlockfrostParams(networkId);
+    return Lucid.new(new Blockfrost(blockfrostParams.api, blockfrostKey), blockfrostParams.network);
   })
 }
 
-function getNetworkId() {
+export function getNetworkId() {
   var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
   if (!cardanoDApp.isWalletConnected()) {
     return undefined;
@@ -51,4 +39,19 @@ function getNetworkId() {
       return networkId;
     });
   });
+}
+
+export function getBlockfrostParams(networkId) {
+  if (networkId == MAINNET) {
+    return {
+      api: 'https://cardano-mainnet.blockfrost.io/api/v0',
+      network: 'Mainnet'
+    }
+  } else if (networkId == TESTNET) {
+      return {
+        api: 'https://cardano-testnet.blockfrost.io/api/v0',
+        network: 'Testnet'
+      }
+  }
+  throw `Unknown network ID returned by lucid: ${networkId}`;
 }

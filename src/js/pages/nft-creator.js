@@ -20,6 +20,9 @@ const INPUT_TYPE = 'INPUT';
 const IPFS_LINK_ID = 'ipfs-io-link';
 const KEY_SUFFIX = 'name';
 const LOVELACE = 'lovelace';
+const MAX_BURN_ATTEMPTS = 10;
+const MINT_COMPLETION_WAIT_INTERVAL = 60000;
+const SINGLE_NFT = 1;
 const SPAN_TYPE = 'SPAN';
 const VALUE_SUFFIX = 'value';
 
@@ -120,10 +123,7 @@ export function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
 
   var fileInput = document.querySelector(fileDom);
   if (fileInput.files.length != 1) {
-    Toastify({
-      text: `Upload exactly 1 file, you uploaded ${fileInput.files.length}`,
-      duration: 3000
-    }).showToast();
+    shortToast(`Upload exactly 1 file, you uploaded ${fileInput.files.length}`);
     ipfsDisplay.innerHTML = existingIpfsDisplay;
     return;
   }
@@ -138,7 +138,7 @@ export function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
   }).catch(err => shortToast(`An error occurred uploading to NFT.storage: ${err}`));
 }
 
-export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numTraits, numMintsDom) {
+export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numTraits, numMintsDom) {
   e && e.preventDefault();
 
   try {
@@ -146,89 +146,95 @@ export function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, 
     var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before minting using "Connect Wallet" button');
 
-    NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostDom, datetimeDom, slotDom).then(policyExpirationSlot => {
-      cardanoDApp.getConnectedWallet().then(wallet => {
-        LucidInst.getLucidInstance(blockfrostKey).then(lucid => {
-          try {
-            validate(lucid, 'Your blockfrost key does not match the network of your wallet.');
+    const policyExpirationSlot = await NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostDom, datetimeDom, slotDom);
+    const wallet = await cardanoDApp.getConnectedWallet();
+    const lucid = await LucidInst.getLucidInstance(blockfrostKey);
+    validate(lucid, 'Your blockfrost key does not match the network of your wallet.');
 
-            var nftName = validated(document.querySelector(nameDom)?.value, 'Please enter a name for NFT in the text box!');
-            var nftMetadata = generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTraits)
-            var scriptSKeyText = validated(NftPolicy.NftPolicy.getKeyFromInputOrSpan(scriptSKeyDom), 'Must either generate or enter a valid secret key before proceeding');
-            var scriptSKey = NftPolicy.NftPolicy.privateKeyFromCbor(scriptSKeyText);
-            var policyKeyHash = toHex(scriptSKey.to_public().hash().to_bytes());
-            var nftPolicy = new NftPolicy.NftPolicy(policyExpirationSlot, scriptSKey, policyKeyHash);
-            var mintingPolicy = nftPolicy.getMintingPolicy();
-            var numMints = validated(parseInt(document.querySelector(numMintsDom).value), 'Please enter the number of NFTs you would like to mint');
-            if (numMints < 1 || numMints > Secrets.MAX_QUANTITY) {
-              throw `Attempting to mint invalid number of NFTs (${numMints})`;
-            }
-          } catch (error) {
-            shortToast(error);
-            return;
+    const nftName = validated(document.querySelector(nameDom)?.value, 'Please enter a name for NFT in the text box!');
+    const nftMetadata = generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTraits)
+    const scriptSKeyText = validated(NftPolicy.NftPolicy.getKeyFromInputOrSpan(scriptSKeyDom), 'Must either generate or enter a valid secret key before proceeding');
+    const scriptSKey = NftPolicy.NftPolicy.privateKeyFromCbor(scriptSKeyText);
+    const policyKeyHash = toHex(scriptSKey.to_public().hash().to_bytes());
+    const nftPolicy = new NftPolicy.NftPolicy(policyExpirationSlot, scriptSKey, policyKeyHash);
+    const mintingPolicy = nftPolicy.getMintingPolicy();
+    const numMints = validated(parseInt(document.querySelector(numMintsDom).value), 'Please enter the number of NFTs you would like to mint');
+    if (numMints < 1 || numMints > Secrets.MAX_QUANTITY) {
+      throw `Attempting to mint invalid number of NFTs (${numMints})`;
+    }
+
+    const fileEl = document.querySelector(fileDom);
+    const fileNameEl = document.querySelector(`#${FILENAME_ID}`);
+    if (fileEl.files.length > 0 && fileEl.files[0].name != fileNameEl?.textContent) {
+      if (!confirm('The file you selected has not been uploaded yet, proceed?')) {
+        return;
+      }
+    }
+
+    const chainMetadata = wrapMetadataFor(mintingPolicy.policyID, nftMetadata);
+    const assetName = `${mintingPolicy.policyID}${toHex(getTextEncoder().encode(nftName))}`
+    const mintAssets = { [assetName]: numMints }
+
+    const rebate = RebateCalculator.calculateRebate(RebateCalculator.SINGLE_POLICY, numMints, assetName.length);
+    const mintVend = { [LOVELACE]: rebate, [assetName]: numMints };
+    const update = (numMints == SINGLE_NFT) && (await existsOnChain(assetName, blockfrostKey));
+    if (update && !confirm('The NFT you are trying to create already exists, would you like to perform an update (requires two transactions and signatures)?')) {
+      return;
+    }
+
+    const domToClear = getDomElementsToClear(traitsPrefix, numTraits, nameDom, fileDom, ipfsDisplayDom, numMintsDom);
+
+    lucid.selectWallet(wallet);
+    const address = await lucid.wallet.address();
+    const availableUtxos = await lucid.wallet.getUtxos();
+    const requiredAssets = {};
+    if (lucid.network === 'Mainnet') {
+      for (const availableUtxo of availableUtxos) {
+        const assets = availableUtxo.assets;
+        for (const asset in assets) {
+          if (asset.startsWith(Secrets.REQUIRED_POLICY_KEY)) {
+            requiredAssets[asset] = assets[asset];
           }
+        }
+      }
+      const requiredAssetsFound = Object.values(requiredAssets).reduce((acc, amount) => acc + amount, 0n);
+      if (requiredAssetsFound < Secrets.REQUIRED_POLICY_MIN) {
+        alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least ${Secrets.REQUIRED_POLICY_MIN} NFTs with policy ID ${Secrets.REQUIRED_POLICY_KEY} - no need to refresh the page!`);
+        return;
+      }
+    } else if (lucid.network === 'Testnet') {
+      // Manual here just to ensure there's no funny business switching around networks in the debugger
+      if (!(document.querySelector(blockfrostDom).value.startsWith('testnet') && (lucid.network === 'Testnet'))) {
+        throw 'Odd state detected... contact developer for more information.'
+      }
+    } else {
+      longToast(`Unknown network detected ${lucid.network}`);
+      return;
+    }
 
-          var fileEl = document.querySelector(fileDom);
-          var fileNameEl = document.querySelector(`#${FILENAME_ID}`);
-          if (fileEl.files.length > 0 && fileEl.files[0].name != fileNameEl?.textContent) {
-            if (!confirm('The file you selected has not been uploaded yet, proceed?')) {
-              return;
-            }
-          }
+    var txBuilder = lucid.newTx()
+                         .attachMintingPolicy(mintingPolicy)
+                         .attachMetadata(NftPolicy.METADATA_KEY, chainMetadata)
+                         .mintAssets(mintAssets)
+                         .payToAddress(address, mintVend);
+    if (policyExpirationSlot) {
+      txBuilder = txBuilder.validTo(lucid.utils.slotToUnixTime(policyExpirationSlot));
+    }
+    const txComplete = await txBuilder.complete();
+    const txSigned = await txComplete.signWithPrivateKey(scriptSKey.to_bech32()).sign().complete();
+    const txSubmit = await txSigned.submit();
+    longToast(`Successfully sent minting tx: ${txSubmit}!`);
+    domToClear.forEach(clearDomElement);
 
-          var chainMetadata = wrapMetadataFor(mintingPolicy.policyID, nftMetadata);
-          var assetName = `${mintingPolicy.policyID}${toHex(getTextEncoder().encode(nftName))}`
-          var mintAssets = { [assetName]: numMints }
-
-          var rebate = RebateCalculator.calculateRebate(RebateCalculator.SINGLE_POLICY, numMints, assetName.length);
-          var mintVend = { [LOVELACE]: rebate, [assetName]: numMints }
-
-          var domToClear = getDomElementsToClear(traitsPrefix, numTraits, nameDom, fileDom, ipfsDisplayDom, numMintsDom);
-
-          lucid.selectWallet(wallet);
-          lucid.wallet.address().then(address => {
-            lucid.wallet.getUtxos().then(requiredPolicyUtxos => {
-              var requiredAssets = {};
-              if (lucid.network === 'Mainnet') {
-                for (var requiredPolicyUtxo of requiredPolicyUtxos) {
-                  var assets = requiredPolicyUtxo.assets;
-                  for (assetName in assets) {
-                    if (assetName.startsWith(Secrets.REQUIRED_POLICY_KEY)) {
-                      requiredAssets[assetName] = assets[assetName];
-                    }
-                  }
-                }
-                var requiredAssetsFound = Object.values(requiredAssets).reduce((acc, amount) => acc + amount, 0n);
-                if (requiredAssetsFound < Secrets.REQUIRED_POLICY_MIN) {
-                  alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least ${Secrets.REQUIRED_POLICY_MIN} NFTs with policy ID ${Secrets.REQUIRED_POLICY_KEY} - no need to refresh the page!`);
-                  return;
-                }
-              } else if (lucid.network === 'Testnet') {
-                // Manual here just to ensure there's no funny business switching around networks in the debugger
-                if (!(document.querySelector(blockfrostDom).value.startsWith('testnet') && (lucid.network === 'Testnet'))) {
-                  throw 'Odd state detected... contact developer for more information.'
-                }
-              } else {
-                longToast(`Unknown network detected ${lucid.network}`);
-                return;
-              }
-
-              var txBuilder = lucid.newTx()
-                                   .attachMintingPolicy(mintingPolicy)
-                                   .attachMetadata(NftPolicy.METADATA_KEY, chainMetadata)
-                                   .mintAssets(mintAssets)
-                                   .payToAddress(address, mintVend);
-              if (policyExpirationSlot) {
-                txBuilder = txBuilder.validTo(lucid.utils.slotToUnixTime(policyExpirationSlot));
-              }
-              txBuilder.complete().then(tx => signAndSubmitTxn(tx, scriptSKey, domToClear)).catch(toastMintError);
-            }).catch(e => toastMintError(`Unknown error retrieving your wallet address: ${e}`));
-          }).catch(e => toastMintError(`Unknown error validating wallet: ${e}`));
-        }).catch(e => toastMintError('Could not initialize Lucid (check your blockfrost key)'));
-      }).catch(e => toastMintError(`Could not initialize the wallet that you selected: ${e}`));
-    }).catch(e => toastMintError(`Could not interpret slot: ${e}`));
+    if (update) {
+      longToast('Will ask you to burn the NFT when mint is complete, please wait...');
+      setTimeout(
+        (async () => attemptBurn(assetName, mintingPolicy, scriptSKey, address, lucid, 1)).bind(this),
+        MINT_COMPLETION_WAIT_INTERVAL
+      );
+    }
   } catch (err) {
-    shortToast(err);
+    toastMintError(err);
   }
 }
 
@@ -288,13 +294,38 @@ function getDomElementsToClear(traitsPrefix, numTraits, ...otherDomElements) {
   return domElements;
 }
 
-function signAndSubmitTxn(tx, scriptSKey, domToClear) {
-  tx.signWithPrivateKey(scriptSKey.to_bech32()).sign().complete().then(signedTx =>
-    signedTx.submit().then(txHash => {
-      longToast(`Successfully sent minting tx: ${txHash}!`);
-      domToClear.forEach(clearDomElement);
-    })
-  ).catch(toastMintError);
+async function existsOnChain(assetName, blockfrostKey) {
+  const blockfrostSettings = await LucidInst.getBlockfrostParams(await LucidInst.getNetworkId());
+  let result = await fetch(`${blockfrostSettings.api}/assets/${assetName}`,
+    { headers: { project_id: blockfrostKey } }
+  ).then(res => res.json());
+  if (result && result.error) {
+    return false;
+  }
+  return true;
+}
+
+async function attemptBurn(assetName, mintingPolicy, scriptSKey, address, lucid, attempt) {
+  try {
+    const mintAssets = { [assetName]: -1 };
+    const txComplete = await lucid.newTx()
+                                .attachMintingPolicy(mintingPolicy)
+                                .mintAssets(mintAssets)
+                                .complete();
+    const txSigned = await txComplete.signWithPrivateKey(scriptSKey.to_bech32()).sign().complete();
+    const txSubmit = await txSigned.submit();
+    longToast(`Successfully sent burning tx: ${txSubmit}!`);
+  } catch (err) {
+    if (attempt < MAX_BURN_ATTEMPTS) {
+      longToast(`Error occurred burning, will retry shortly (${err})`);
+      setTimeout(
+        (async () => attemptBurn(assetName, rebate, mintingPolicy, scriptSKey, address, lucid, attempt + 1)).bind(this),
+        MINT_COMPLETION_WAIT_INTERVAL
+      );
+    } else {
+      longToast(`Unrecoverable error, contact developer: ${err}`);
+    }
+  }
 }
 
 function clearDomElement(domQuery) {

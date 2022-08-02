@@ -131,6 +131,7 @@ dist
 
 # Secrets related to your specific Mint/project
 src/js/secrets.js
+private/
 
 # Mac OS X
 **.DS_Store
