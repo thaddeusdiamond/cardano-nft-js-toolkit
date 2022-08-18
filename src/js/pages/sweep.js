@@ -1,7 +1,7 @@
 import * as CardanoDAppJs from "../third-party/cardano-dapp-js.js";
 import * as LucidInst from "../third-party/lucid-inst.js";
 
-import {coreToUtxo, fromHex, C as LCore, TxComplete} from "lucid-cardano";
+import {coreToUtxo, fromHex, toHex, C as LCore, TxComplete} from "lucid-cardano";
 import {shortToast} from "../third-party/toastify-utils.js";
 
 const MSG_ID = '674';
@@ -66,11 +66,11 @@ async function getWalletInfo(wallet, lucid) {
 }
 
 async function executeCborTxn(lucid, txn) {
-  const txnBytes = fromHex(txn.cbor);
+  const txnBytes = fromHex(txn.txn.cbor);
   const txnFromCbor = LCore.Transaction.from_bytes(txnBytes);
   var txComplete = new TxComplete(lucid, txnFromCbor);
   var txSigned = await txComplete.sign().complete();
-  return await txSigned.submit();
+  return { txSigned: txSigned.txSigned, txHash: await txSigned.submit() };
 }
 
 async function executePayToTxn(lucid, txn) {
@@ -89,16 +89,16 @@ async function executePayToTxn(lucid, txn) {
                                 .payToAddress(txn.address, {lovelace: txn.amount})
                                 .complete();
   const txSigned = await txComplete.sign().complete();
-  return await txSigned.submit();
+  return { txSigned: txSigned.txSigned, txHash: await txSigned.submit() };
 }
 
 async function executeTxn(lucid, txn) {
   if (txn.type === 'pay_to_address') {
     return executePayToTxn(lucid, txn);
-  } else if ('cbor' in txn) {
+  } else if (txn.type === 'sweep_txn_type') {
     return executeCborTxn(lucid, txn);
   }
-  throw `Unrecognized txn: ${txn}`;
+  throw `Unrecognized txn: ${JSON.stringify(txn)}`;
 }
 
 export async function processMessageData(message) {
@@ -119,12 +119,19 @@ export async function processMessageData(message) {
       const wallet = await cardanoDAppWallet();
       const lucid = await connectedLucidInst(message.params.blockfrostKey, wallet);
       try {
-        const feeTxHash = await executeTxn(lucid, message.params.feeTxn);
-        shortToast(`Thank you for paying the fee! Confirmation of tx: ${feeTxHash}`);
+        const feeTx = await executeTxn(lucid, message.params.feeTxn);
+        shortToast(`Thank you for paying the fee! Confirmation of tx: ${feeTx.txHash}`);
         for (const txn of message.params.txns) {
           try {
-            const txHash = await executeTxn(lucid, txn);
-            shortToast(`Successfully sent sweep tx: ${txHash}!`);
+            const txComplete = await executeTxn(lucid, txn);
+            const witnessSet = toHex(txComplete.txSigned.witness_set().to_bytes());
+            window.postMessage({
+              type: "WT_TXN_COMPLETE",
+              order: txn.order,
+              witnessSet: witnessSet,
+              txHash: txComplete.txHash
+            });
+            shortToast(`Successfully sent sweep tx: ${txComplete.txHash}!`);
             completedTxns += 1;
           } catch (err) {
             const errMsg = (typeof err === 'string') ? err : JSON.stringify(err);
