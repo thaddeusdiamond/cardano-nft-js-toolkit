@@ -51,10 +51,17 @@ async function validateHoldings(lucid, requiredPolicy, minAssets) {
 }
 
 async function getWalletInfo(wallet, lucid) {
+  const walletUtxos = await wallet.getUtxos();
+  const utxos = new Map(
+    walletUtxos.map(utxo => {
+      const parsedUtxo = LCore.TransactionUnspentOutput.from_bytes(fromHex(utxo));
+      return [utxo, coreToUtxo(parsedUtxo)];
+    })
+  );
   return {
     address: await lucid.wallet.address(),
     collateral: await wallet.experimental.getCollateral(),
-    utxos: await wallet.getUtxos()
+    utxos: utxos
   }
 }
 
