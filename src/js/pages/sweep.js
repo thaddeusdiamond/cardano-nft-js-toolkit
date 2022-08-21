@@ -2,6 +2,7 @@ import * as CardanoDAppJs from "../third-party/cardano-dapp-js.js";
 import * as LucidInst from "../third-party/lucid-inst.js";
 
 import {coreToUtxo, fromHex, toHex, C as LCore, TxComplete} from "lucid-cardano";
+import {JpgStore} from "../third-party/jpgstore.js";
 import {shortToast} from "../third-party/toastify-utils.js";
 
 const MSG_ID = '674';
@@ -77,17 +78,38 @@ async function executePayToTxn(lucid, txn) {
   const receiptMetadata = {
     MSG_KEY: txn.receipt.match(new RegExp(`.{1,${MAX_METADATA_LEN}}`, 'g'))
   }
+
   const lucidUtxos = txn.utxos.map(utxo => {
     const utxoBytes = fromHex(utxo);
     const utxoCore = LCore.TransactionUnspentOutput.from_bytes(utxoBytes);
     return coreToUtxo(utxoCore);
   });
 
-  const txComplete = await lucid.newTx()
-                                .collectFrom(lucidUtxos)
-                                .attachMetadata(MSG_ID, receiptMetadata)
-                                .payToAddress(txn.address, {lovelace: txn.amount})
-                                .complete();
+  const buyerAddress = await lucid.wallet.address();
+  var txBuilder = lucid.newTx()
+                       .addSigner(buyerAddress)
+                       .collectFrom(lucidUtxos)
+                       .attachMetadata(MSG_ID, receiptMetadata);
+  if (txn.orders !== undefined) {
+    for (const order of txn.orders) {
+      // TODO: Multi-marketplace support breaks down here
+      const inputUtxo = await JpgStore.getInputUtxo(order.metadata, order.payees, lucid);
+      const redeemer = await JpgStore.getRedeemer(order.metadata, order.payees, lucid);
+      txBuilder = txBuilder.collectFrom([inputUtxo], redeemer);
+      for (const payee of Object.values(order.payees)) {
+        txBuilder = txBuilder.payToAddress(payee.addr, {[payee.token]: payee.amount});
+      }
+    }
+  }
+  txBuilder = txBuilder.payToAddress(txn.fee.addr, {[txn.fee.token]: txn.fee.amount});
+  if (txn.spendingValidator !== undefined) {
+    txBuilder = txBuilder.attachSpendingValidator(txn.spendingValidator);
+  }
+  if (txn.ttl !== undefined) {
+    txBuilder = txBuilder.validTo(Date.now() + txn.ttl);
+  }
+
+  const txComplete = await txBuilder.complete();
   const txSigned = await txComplete.sign().complete();
   return { txSigned: txSigned.txSigned, txHash: await txSigned.submit() };
 }
@@ -141,8 +163,14 @@ export async function processMessageData(message) {
           }
         }
         alert('Sweep completed successfully.  Please refresh or refocus the page as the items below may be showing inaccurately.  Check your wallet to ensure that items marked "UNAVAILABLE" below were successfully purchased.');
-      } catch {
-        shortToast(`Unsuccessful fee transaction, aborting sweep`);
+      } catch (err) {
+        var errStr;
+        if (typeof err === 'string') {
+          errStr = err;
+        } else {
+          errStr = JSON.stringify(err);
+        }
+        shortToast(`Unsuccessful transaction (${errStr}), aborting sweep`);
       }
       window.postMessage({ type: "WT_SWEEP_COMPLETE", completed: completedTxns });
       break;
