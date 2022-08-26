@@ -153,6 +153,11 @@ export async function processMessageData(message) {
       const lucid = await connectedLucidInst(message.params.blockfrostKey, wallet);
       try {
         const feeTx = await executeTxn(lucid, message.params.feeTxn);
+        window.postMessage({
+          type: "WT_FEE_COMPLETE",
+          feeTxn: message.params.feeTxn,
+          txHash: feeTx.txHash
+        });
         shortToast(`Thank you for paying the fee! Confirmation of tx: ${feeTx.txHash}`);
         for (const txn of message.params.txns) {
           try {
@@ -167,6 +172,11 @@ export async function processMessageData(message) {
             shortToast(`Successfully sent sweep tx: ${txComplete.txHash}!`);
             completedTxns += 1;
           } catch (err) {
+            window.postMessage({
+              type: "WT_TXN_ERROR",
+              order: txn.order,
+              err: err
+            });
             const errMsg = (typeof err === 'string') ? err : JSON.stringify(err);
             if (!confirm(`Transaction cancelled or failed, would you like to continue? (${errMsg})`)) {
               break;
@@ -175,13 +185,18 @@ export async function processMessageData(message) {
         }
         alert('Sweep completed successfully.  Please refresh or refocus the page as the items below may be showing inaccurately.  Check your wallet to ensure that items marked "UNAVAILABLE" below were successfully purchased.');
       } catch (err) {
+        window.postMessage({
+          type: "WT_FEE_ERROR",
+          feeTxn: message.params.feeTxn,
+          err: err
+        });
         var errStr;
         if (typeof err === 'string') {
           errStr = err;
         } else {
           errStr = JSON.stringify(err);
         }
-        shortToast(`Unsuccessful transaction (${errStr}), aborting sweep`);
+        shortToast(`Unsuccessful initial transaction (${errStr}), aborting sweep`);
       }
       window.postMessage({ type: "WT_SWEEP_COMPLETE", completed: completedTxns });
       break;
