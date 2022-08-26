@@ -125,6 +125,17 @@ async function executeTxn(lucid, txn) {
 
 export async function processMessageData(message) {
   switch (message.type) {
+    case "WT_LOAD_PREP":
+      var walletInfo;
+      try {
+        const wallet = await cardanoDAppWallet();
+        const lucid = await connectedLucidInst(message.params.blockfrostKey, wallet);
+        walletInfo = await getWalletInfo(wallet, lucid);
+      } catch (err) {
+        walletInfo = { utxos: new Map() }
+      }
+      window.postMessage({ type: "WT_LOAD_READY", wallet: walletInfo }, "*");
+      break;
     case "WT_START_SWEEP":
       try {
         const wallet = await cardanoDAppWallet();
