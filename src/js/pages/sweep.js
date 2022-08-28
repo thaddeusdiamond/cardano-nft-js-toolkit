@@ -3,7 +3,6 @@ import * as LucidInst from "../third-party/lucid-inst.js";
 
 import {coreToUtxo, fromHex, toHex, C as LCore, TxComplete} from "lucid-cardano";
 import {JpgStore} from "../third-party/jpgstore.js";
-import {shortToast} from "../third-party/toastify-utils.js";
 
 const MSG_ID = '674';
 const MSG_KEY = 'msg';
@@ -158,7 +157,6 @@ export async function processMessageData(message) {
           feeTxn: message.params.feeTxn,
           txHash: feeTx.txHash
         });
-        shortToast(`Thank you for paying the fee! Confirmation of tx: ${feeTx.txHash}`);
         for (const txn of message.params.txns) {
           try {
             const txComplete = await executeTxn(lucid, txn);
@@ -169,7 +167,6 @@ export async function processMessageData(message) {
               witnessSet: witnessSet,
               txHash: txComplete.txHash
             });
-            shortToast(`Successfully sent sweep tx: ${txComplete.txHash}!`);
             completedTxns += 1;
           } catch (err) {
             window.postMessage({
@@ -183,7 +180,6 @@ export async function processMessageData(message) {
             }
           }
         }
-        alert('Sweep completed successfully.  Please refresh or refocus the page as the items below may be showing inaccurately.  Check your wallet to ensure that items marked "UNAVAILABLE" below were successfully purchased.');
       } catch (err) {
         window.postMessage({
           type: "WT_FEE_ERROR",
@@ -196,7 +192,6 @@ export async function processMessageData(message) {
         } else {
           errStr = JSON.stringify(err);
         }
-        shortToast(`Unsuccessful initial transaction (${errStr}), aborting sweep`);
       }
       window.postMessage({ type: "WT_SWEEP_COMPLETE", completed: completedTxns });
       break;
