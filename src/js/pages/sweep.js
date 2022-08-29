@@ -7,6 +7,7 @@ import {JpgStore} from "../third-party/jpgstore.js";
 const MSG_ID = '674';
 const MSG_KEY = 'msg';
 const MAX_METADATA_LEN = 64;
+const UTXO_WAIT_TIMEOUT = 30;
 
 function numRequiredPolicyAssets(requiredPolicy, availableUtxos) {
   const requiredAssets = {};
@@ -74,10 +75,6 @@ async function executeCborTxn(lucid, txn) {
 }
 
 async function executePayToTxn(lucid, txn) {
-  const receiptMetadata = {
-    MSG_KEY: txn.receipt.match(new RegExp(`.{1,${MAX_METADATA_LEN}}`, 'g'))
-  }
-
   const lucidUtxos = txn.utxos.map(utxo => {
     const utxoBytes = fromHex(utxo);
     const utxoCore = LCore.TransactionUnspentOutput.from_bytes(utxoBytes);
@@ -85,10 +82,13 @@ async function executePayToTxn(lucid, txn) {
   });
 
   const buyerAddress = await lucid.wallet.address();
-  var txBuilder = lucid.newTx()
-                       .addSigner(buyerAddress)
-                       .collectFrom(lucidUtxos)
-                       .attachMetadata(MSG_ID, receiptMetadata);
+  var txBuilder = lucid.newTx().addSigner(buyerAddress).collectFrom(lucidUtxos);
+
+  if (txn.receipt !== undefined) {
+    const receiptMetadata = txn.receipt.match(new RegExp(`.{1,${MAX_METADATA_LEN}}`, 'g'));
+    txBuilder = txBuilder.attachMetadata(MSG_ID, { MSG_KEY: receiptMetadata });
+  }
+
   if (txn.orders !== undefined) {
     for (const order of txn.orders) {
       // TODO: Multi-marketplace support breaks down here
@@ -100,10 +100,21 @@ async function executePayToTxn(lucid, txn) {
       }
     }
   }
-  txBuilder = txBuilder.payToAddress(txn.fee.addr, {[txn.fee.token]: txn.fee.amount});
+
+  if (txn.fee !== undefined) {
+    txBuilder = txBuilder.payToAddress(txn.fee.addr, {[txn.fee.token]: txn.fee.amount});
+  }
+
+  if (txn.payees !== undefined) {
+    for (const payee of txn.payees) {
+      txBuilder = txBuilder.payToAddress(payee.addr, {[payee.token]: payee.amount});
+    }
+  }
+
   if (txn.spendingValidator !== undefined) {
     txBuilder = txBuilder.attachSpendingValidator(txn.spendingValidator);
   }
+
   if (txn.ttl !== undefined) {
     txBuilder = txBuilder.validTo(Date.now() + txn.ttl);
   }
@@ -120,6 +131,19 @@ async function executeTxn(lucid, txn) {
     return executeCborTxn(lucid, txn);
   }
   throw `Unrecognized txn: ${JSON.stringify(txn)}`;
+}
+
+async function waitForTxn(blockfrostKey, txHash) {
+  const wallet = await cardanoDAppWallet();
+  const lucid = await connectedLucidInst(blockfrostKey, wallet);
+  const walletInfo = await getWalletInfo(wallet, lucid);
+  for (const utxo of walletInfo.utxos.values()) {
+    if (utxo.txHash === txHash) {
+      window.postMessage({ type: "WT_SWEEP_READY", wallet: walletInfo }, "*");
+      return;
+    }
+  }
+  setTimeout(async _ => await waitForTxn(blockfrostKey, txHash), UTXO_WAIT_TIMEOUT);
 }
 
 export async function processMessageData(message) {
@@ -144,6 +168,17 @@ export async function processMessageData(message) {
         window.postMessage({ type: "WT_WALLET_READY", wallet: walletInfo }, "*");
       } catch (err) {
         window.postMessage({ type: "WT_WALLET_ERROR", err: err }, "*");
+      }
+      break;
+    case "WT_SEND_TO_SELF":
+      try {
+        const wallet = await cardanoDAppWallet();
+        const lucid = await connectedLucidInst(message.params.blockfrostKey, wallet);
+        const txComplete = await executeTxn(lucid, message.params.self_txn);
+        window.postMessage({ type: "WT_SEND_SELF_COMPLETE", txHash: txComplete.txHash }, "*");
+        await waitForTxn(message.params.blockfrostKey, txComplete.txHash);
+      } catch (err) {
+        window.postMessage({ type: "WT_SEND_TO_SELF_FAIL", err: err }, "*");
       }
       break;
     case "WT_PERFORM_TXNS":
