@@ -86,7 +86,7 @@ async function executePayToTxn(lucid, txn) {
 
   if (txn.receipt !== undefined) {
     const receiptMetadata = txn.receipt.match(new RegExp(`.{1,${MAX_METADATA_LEN}}`, 'g'));
-    txBuilder = txBuilder.attachMetadata(MSG_ID, { MSG_KEY: receiptMetadata });
+    txBuilder = txBuilder.attachMetadata(MSG_ID, { [MSG_KEY]: receiptMetadata });
   }
 
   if (txn.orders !== undefined) {
