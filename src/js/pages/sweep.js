@@ -139,7 +139,7 @@ async function waitForTxn(blockfrostKey, txHash) {
   const walletInfo = await getWalletInfo(wallet, lucid);
   for (const utxo of walletInfo.utxos.values()) {
     if (utxo.txHash === txHash) {
-      window.postMessage({ type: "WT_SWEEP_READY", wallet: walletInfo }, "*");
+      window.postMessage({ type: "WT_SWEEP_READY", utxoHash: txHash, wallet: walletInfo }, "*");
       return;
     }
   }
