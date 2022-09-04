@@ -146,6 +146,14 @@ async function waitForTxn(blockfrostKey, txHash) {
   setTimeout(async _ => await waitForTxn(blockfrostKey, txHash), UTXO_WAIT_TIMEOUT);
 }
 
+function bigIntStringify(obj) {
+  return JSON.stringify(obj, (key, value) =>
+      typeof value === 'bigint'
+          ? value.toString()
+          : value // return everything else unchanged
+  );
+}
+
 export async function processMessageData(message) {
   switch (message.type) {
     case "WT_LOAD_PREP":
@@ -183,6 +191,7 @@ export async function processMessageData(message) {
       break;
     case "WT_PERFORM_TXNS":
       var completedTxns = 0;
+      const totalTxns = message.params.txns.length;
       const wallet = await cardanoDAppWallet();
       const lucid = await connectedLucidInst(message.params.blockfrostKey, wallet);
       try {
@@ -192,22 +201,34 @@ export async function processMessageData(message) {
           feeTxn: message.params.feeTxn,
           txHash: feeTx.txHash
         });
+        var currTxn = 0;
         for (const txn of message.params.txns) {
+          currTxn++;
           try {
+            window.postMessage({
+              type: "WT_TXN_START",
+              order: txn.order,
+              index: currTxn,
+              total: totalTxns
+            });
             const txComplete = await executeTxn(lucid, txn);
             const witnessSet = toHex(txComplete.txSigned.witness_set().to_bytes());
             window.postMessage({
               type: "WT_TXN_COMPLETE",
               order: txn.order,
               witnessSet: witnessSet,
-              txHash: txComplete.txHash
+              txHash: txComplete.txHash,
+              index: currTxn,
+              total: totalTxns
             });
-            completedTxns += 1;
+            completedTxns++;
           } catch (err) {
             window.postMessage({
               type: "WT_TXN_ERROR",
               order: txn.order,
-              err: err
+              err: err,
+              index: currTxn,
+              total: totalTxns
             });
             const errMsg = (typeof err === 'string') ? err : JSON.stringify(err);
             if (!confirm(`Transaction cancelled or failed, would you like to continue? (${errMsg})`)) {
