@@ -30,6 +30,7 @@
       const paymentAddr = "PAYMENT_ADDRESS_HERE";
       const lovelacePerAda = 1000000;
       const mintPrice = 45 * lovelacePerAda;
+      const whitelistPolicy = "WL_POLICY_ID_HERE";
 
       document.querySelector("#mint-fewer").addEventListener("click", e => {
         NftToolkit.DropPayment.decreaseMintCount(e, lowerLimit, upperLimit);
@@ -41,7 +42,7 @@
         NftToolkit.DropPayment.validateMintCount(e, lowerLimit, upperLimit);
       });
       document.querySelector("#mint-now").addEventListener("click", async e => {
-        NftToolkit.DropPayment.mintNow(e, NftToolkit.Secrets.BLOCKFROST_PROJ, paymentAddr, mintPrice);
+        NftToolkit.DropPayment.mintNow(e, NftToolkit.Secrets.BLOCKFROST_PROJ, paymentAddr, mintPrice, whitelistPolicy);
       });
     })
   </script>

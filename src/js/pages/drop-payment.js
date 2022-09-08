@@ -31,7 +31,32 @@ export function validateMintCount(e, lowerLimit, upperLimit) {
   updateMintCount(getCurrentCount(), lowerLimit, upperLimit);
 }
 
-export async function mintNow(e, blockfrostKey, paymentAddr, price) {
+async function getWhitelistedAssets(whitelistPolicy, lucid) {
+  if (whitelistPolicy === undefined) {
+    return {};
+  }
+  const whitelistedAssets = {};
+  const utxos = [];
+  for (const utxo of await lucid.wallet.getUtxos()) {
+    var found = false;
+    for (const assetName in utxo.assets) {
+      if (assetName.slice(0, 56) !== whitelistPolicy) {
+        continue;
+      }
+      if (whitelistedAssets[assetName] === undefined) {
+        whitelistedAssets[assetName] = 0n;
+      }
+      whitelistedAssets[assetName] += utxo.assets[assetName];
+      found = true;
+    }
+    if (found) {
+      utxos.push(utxo);
+    }
+  }
+  return { assets: whitelistedAssets, utxos: utxos };
+}
+
+export async function mintNow(e, blockfrostKey, paymentAddr, price, whitelistPolicy) {
   e.preventDefault();
   var cardanoDApp = CardanoDApp.getCardanoDAppInstance();
   if (!cardanoDApp.isWalletConnected()) {
@@ -53,6 +78,12 @@ export async function mintNow(e, blockfrostKey, paymentAddr, price) {
 
     var paymentAmount = getCurrentCount() * price;
     var txBuilder = lucid.newTx().payToAddress(paymentAddr, { lovelace: paymentAmount });
+
+    const whitelistedAssets = await getWhitelistedAssets(whitelistPolicy, lucid);
+    if (whitelistedAssets.assets !== undefined) {
+      txBuilder = txBuilder.payToAddress(walletAddress, whitelistedAssets.assets);
+    }
+
     const txComplete = await txBuilder.complete();
     const txSigned = await txComplete.sign().complete();
     const txHash = await txSigned.submit();
