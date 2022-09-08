@@ -1,12 +1,10 @@
 <html>
   <head>
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.6/dist/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.2.1/dist/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
 
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
-    <link href="https://cdn.jsdelivr.net/npm/cardano-dapp-js@1.0.3/dist/cardano-wallet-picker.css" rel="stylesheet" integrity="sha384-jeqm08LTVeNbS97UWy4EXaCioonM70aAFwSpoQITuPKgc53EI0+XfxoG+0hwMLqj" crossorigin="anonymous" type="text/css">
+    <link href="https://cdn.jsdelivr.net/npm/cardano-dapp-js@1.0.5/dist/cardano-wallet-picker.css" rel="stylesheet" integrity="sha384-jeqm08LTVeNbS97UWy4EXaCioonM70aAFwSpoQITuPKgc53EI0+XfxoG+0hwMLqj" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" rel="stylesheet" integrity="sha384-1txFwJFikBxvmOF4oqBQdSBJQzEUrMDB2MMmedDaFGsjXYStJKO7JkwyAWPDXlkk" crossorigin="anonymous">
 
     <script type="text/javascript" src="nft-toolkit.js"></script>
     <link rel="stylesheet" href="drop-payment.css" />
@@ -27,17 +25,23 @@
     NftToolkit.then(NftToolkit => {
       NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container');
 
+      const lowerLimit = 1;
+      const upperLimit = 30;
+      const paymentAddr = "PAYMENT_ADDRESS_HERE";
+      const lovelacePerAda = 1000000;
+      const mintPrice = 45 * lovelacePerAda;
+
       document.querySelector("#mint-fewer").addEventListener("click", e => {
-        NftToolkit.DropPayment.decreaseMintCount(e, NftToolkit.Secrets.LOWER_LIMIT, NftToolkit.Secrets.UPPER_LIMIT)
+        NftToolkit.DropPayment.decreaseMintCount(e, lowerLimit, upperLimit);
       });
       document.querySelector("#mint-more").addEventListener("click", e => {
-        NftToolkit.DropPayment.increaseMintCount(e, NftToolkit.Secrets.LOWER_LIMIT, NftToolkit.Secrets.UPPER_LIMIT)
+        NftToolkit.DropPayment.increaseMintCount(e, lowerLimit, upperLimit);
       });
       document.querySelector("#mint-count").addEventListener("input", e => {
-        NftToolkit.DropPayment.validateMintCount(e, NftToolkit.Secrets.LOWER_LIMIT, NftToolkit.Secrets.UPPER_LIMIT)
+        NftToolkit.DropPayment.validateMintCount(e, lowerLimit, upperLimit);
       });
-      document.querySelector("#mint-now").addEventListener("click", e => {
-        NftToolkit.DropPayment.mintNow(e, NftToolkit.Secrets.BLOCKFROST_PROJ, NftToolkit.Secrets.PAYMENT_ADDR, NftToolkit.Secrets.MINT_PRICE)
+      document.querySelector("#mint-now").addEventListener("click", async e => {
+        NftToolkit.DropPayment.mintNow(e, NftToolkit.Secrets.BLOCKFROST_PROJ, paymentAddr, mintPrice);
       });
     })
   </script>

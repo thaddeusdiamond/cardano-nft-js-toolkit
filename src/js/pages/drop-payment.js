@@ -7,6 +7,9 @@ const MINT_COUNT_DOM = "#mint-count";
 
 function updateMintCount(count, lowerLimit, upperLimit) {
   var boundedCount = Math.max(lowerLimit, Math.min(upperLimit, count));
+  if (isNaN(boundedCount)) {
+    boundedCount = lowerLimit;
+  }
   document.querySelector(MINT_COUNT_DOM).value = boundedCount;
 }
 
@@ -28,7 +31,7 @@ export function validateMintCount(e, lowerLimit, upperLimit) {
   updateMintCount(getCurrentCount(), lowerLimit, upperLimit);
 }
 
-export function mintNow(e, blockfrostKey, paymentAddr, price) {
+export async function mintNow(e, blockfrostKey, paymentAddr, price) {
   e.preventDefault();
   var cardanoDApp = CardanoDApp.getCardanoDAppInstance();
   if (!cardanoDApp.isWalletConnected()) {
@@ -36,30 +39,26 @@ export function mintNow(e, blockfrostKey, paymentAddr, price) {
     return;
   }
 
-  cardanoDApp.getConnectedWallet().then(wallet => {
-    var lucidInst = LucidInst.getLucidInstance(blockfrostKey);
-    if (!lucidInst) {
-      shortToast('Unable to initialize Lucid, check your secrets.js file for a network mismatch');
-      return;
-    }
+  const wallet = await cardanoDApp.getConnectedWallet();
+  const lucidInst = LucidInst.getLucidInstance(blockfrostKey);
+  if (!lucidInst) {
+    shortToast('Unable to initialize Lucid, network mismatch detected');
+    return;
+  }
 
-    lucidInst.then(lucid => {
-      lucid.selectWallet(wallet);
-      var paymentAmount = getCurrentCount() * price;
-      const tx = lucid.newTx()
-                      .payToAddress(paymentAddr, { lovelace: paymentAmount })
-                      .complete()
-                      .then(tx =>
-                          tx.sign().complete().then(signedTx =>
-                            signedTx.submit().then(txHash =>
-                              Toastify({
-                                text: `Successfully sent money for minting in tx: ${txHash}`,
-                                duration: 6000
-                              }).showToast()
-                            )
-                          )
-                      )
-                      .catch(err => shortToast(`Transaction error occurred: ${JSON.stringify(err)}`));
-    }).catch(_ => shortToast('Wallet initialization failed (are you on the right network?)'));
-  }).catch(err => shortToast(`Unknown error occurred, contact developer: ${err}`));
+  try {
+    const lucid = await lucidInst;
+    lucid.selectWallet(wallet);
+    const walletAddress = await lucid.wallet.address();
+
+    var paymentAmount = getCurrentCount() * price;
+    var txBuilder = lucid.newTx().payToAddress(paymentAddr, { lovelace: paymentAmount });
+    const txComplete = await txBuilder.complete();
+    const txSigned = await txComplete.sign().complete();
+    const txHash = await txSigned.submit();
+    shortToast(`Successfully sent money for minting in tx: ${txHash}`);
+  } catch (err) {
+    const msg = (typeof(err) === 'string') ? err : JSON.stringify(err);
+    shortToast(`Transaction error occurred: ${msg}`);
+  }
 }
