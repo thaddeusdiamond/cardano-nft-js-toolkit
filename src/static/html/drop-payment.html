@@ -13,6 +13,10 @@
   <body>
     <div id="wallet-container" class="container"></div>
 
+    <div id="wallet-whitelist" class="container">
+      Please connect your wallet to see whitelist eligibility...
+    </div>
+
     <div id="mint-container" class="container">
         <a id="mint-fewer" class="bordered text-reset text-decoration-none padded noselect pointer">-</a>
         <input id="mint-count" type="number" value="1" />
@@ -25,25 +29,84 @@
     NftToolkit.then(NftToolkit => {
       NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container');
 
-      const lowerLimit = 1;
-      const upperLimit = 30;
+      const lowerLimit = 0;
+      const vendingUpperLimit = 30;
       const paymentAddr = "PAYMENT_ADDRESS_HERE";
       const lovelacePerAda = 1000000;
-      const mintPrice = 45 * lovelacePerAda;
-      const whitelistPolicy = "WL_POLICY_ID_HERE";
+      const mintPrice = 10 * lovelacePerAda;
+      const whitelistPolicies = [
+        "WL_POLICY_ID_HERE"
+      ];
+      const whitelistUsedApi = 'https://sample_project.pages.dev/used_wl.json'
 
-      document.querySelector("#mint-fewer").addEventListener("click", e => {
-        NftToolkit.DropPayment.decreaseMintCount(e, lowerLimit, upperLimit);
+      var whitelistUpperLimit = undefined;
+
+      async function getExclusions() {
+        const whitelist = await fetch(whitelistUsedApi).then(res => res.json());
+        return whitelist["used_assets"];
+      }
+
+      async function updateWhitelistEligibility(whitelistPolicies, exclusions) {
+        const wlAssetsAvailable = await NftToolkit.DropPayment.whitelistAssetsAvailable(
+          NftToolkit.Secrets.BLOCKFROST_PROJ,
+          whitelistPolicies,
+          exclusions
+        );
+        if (wlAssetsAvailable >= 0) {
+          whitelistUpperLimit = wlAssetsAvailable;
+          document.getElementById("wallet-whitelist").textContent =
+            `Your wallet has ${wlAssetsAvailable} assets eligible for whitelist`;
+        } else {
+          document.getElementById("wallet-whitelist").textContent =
+            'Please connect your wallet to see whitelist eligibility...';
+        }
+      }
+
+      document.querySelector("#mint-fewer").addEventListener("click", async e => {
+        e && e.preventDefault();
+        const upperLimit = whitelistUpperLimit >= 0 ? Math.min(whitelistUpperLimit, vendingUpperLimit) : vendingUpperLimit;
+        NftToolkit.DropPayment.decreaseMintCount(lowerLimit, upperLimit);
       });
-      document.querySelector("#mint-more").addEventListener("click", e => {
-        NftToolkit.DropPayment.increaseMintCount(e, lowerLimit, upperLimit);
+
+      document.querySelector("#mint-more").addEventListener("click", async e => {
+        e && e.preventDefault();
+        const upperLimit = whitelistUpperLimit >= 0 ? Math.min(whitelistUpperLimit, vendingUpperLimit) : vendingUpperLimit;
+        NftToolkit.DropPayment.increaseMintCount(lowerLimit, upperLimit);
       });
-      document.querySelector("#mint-count").addEventListener("input", e => {
-        NftToolkit.DropPayment.validateMintCount(e, lowerLimit, upperLimit);
+
+      document.querySelector("#mint-count").addEventListener("input", async e => {
+        e && e.preventDefault();
+        const upperLimit = whitelistUpperLimit >= 0 ? Math.min(whitelistUpperLimit, vendingUpperLimit) : vendingUpperLimit;
+        NftToolkit.DropPayment.validateMintCount(lowerLimit, upperLimit);
       });
+
       document.querySelector("#mint-now").addEventListener("click", async e => {
-        NftToolkit.DropPayment.mintNow(e, NftToolkit.Secrets.BLOCKFROST_PROJ, paymentAddr, mintPrice, whitelistPolicy);
+        e && e.preventDefault();
+        NftToolkit.DropPayment.mintNow(NftToolkit.Secrets.BLOCKFROST_PROJ, paymentAddr, mintPrice, whitelistPolicies);
       });
+
+      window.addEventListener("message", event => {
+        // We only accept messages from ourselves
+        if (event.source != window || !event.data.type) {
+          return;
+        }
+        switch (event.data.type) {
+          case "CARDANO_DAPP_JS_CONNECT":
+            document.getElementById("wallet-whitelist").textContent =
+              'Loading whitelist eligibility, please wait...';
+            getExclusions().then(exclusions =>
+              updateWhitelistEligibility(whitelistPolicies, exclusions)
+            );
+            break;
+          default:
+            // Unknown message, return
+            break;
+        }
+      }, false);
+
+      setInterval(() => getExclusions().then(exclusions =>
+        updateWhitelistEligibility(whitelistPolicies, exclusions)
+      ), 30000);
     })
   </script>
 
