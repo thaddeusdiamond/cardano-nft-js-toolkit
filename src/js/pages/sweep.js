@@ -1,8 +1,8 @@
 import * as CardanoDAppJs from "../third-party/cardano-dapp-js.js";
 import * as LucidInst from "../third-party/lucid-inst.js";
+import * as Marketplaces from "../third-party/marketplaces.js";
 
 import {coreToUtxo, fromHex, toHex, C as LCore, TxComplete} from "lucid-cardano";
-import {JpgStore} from "../third-party/jpgstore.js";
 
 const MSG_ID = '674';
 const MSG_KEY = 'msg';
@@ -74,6 +74,11 @@ async function executeCborTxn(lucid, txn) {
   return { txSigned: txSigned.txSigned, txHash: await txSigned.submit() };
 }
 
+function datumToHash(bytes) {
+  const plutusHash = LCore.hash_plutus_data(LCore.PlutusData.from_bytes(bytes));
+  return plutusHash.to_hex();
+}
+
 async function executePayToTxn(lucid, txn) {
   const lucidUtxos = txn.utxos.map(utxo => {
     const utxoBytes = fromHex(utxo);
@@ -89,15 +94,20 @@ async function executePayToTxn(lucid, txn) {
     txBuilder = txBuilder.attachMetadata(MSG_ID, { [MSG_KEY]: receiptMetadata });
   }
 
-  if (txn.orders !== undefined) {
-    for (const order of txn.orders) {
-      // TODO: Multi-marketplace support breaks down here
-      const inputUtxo = await JpgStore.getInputUtxo(order.metadata, order.payees, lucid);
-      const redeemer = await JpgStore.getRedeemer(order.metadata, order.payees, lucid);
-      txBuilder = txBuilder.collectFrom([inputUtxo], redeemer);
-      for (const payee of Object.values(order.payees)) {
-        txBuilder = txBuilder.payToAddress(payee.addr, {[payee.token]: payee.amount});
+  if (txn.redeemedUtxos !== undefined) {
+    for (const redeemedUtxo of txn.redeemedUtxos) {
+      if (!redeemedUtxo.utxo.datumHash || !redeemedUtxo.utxo.datumSchema) {
+        throw `Redeemed UTxO lacking hash or schema type for calculating redemption ${redeemedUtxo}`;
       }
+
+      const datum = fromHex(Marketplaces.datumFor(redeemedUtxo.utxo.datumSchema, txn.id, txn.payees))
+      const computedHash = datumToHash(datum);
+      if (redeemedUtxo.utxo.datumHash !== computedHash) {
+        throw `Expected ${redeemedUtxo.utxo.datumHash}, found ${computedHash}`;
+      }
+
+      redeemedUtxo.utxo.datum = datum;
+      txBuilder = txBuilder.collectFrom([redeemedUtxo.utxo], redeemedUtxo.redeemer);
     }
   }
 
