@@ -7,6 +7,7 @@ import {coreToUtxo, fromHex, toHex, C as LCore, TxComplete} from "lucid-cardano"
 const MSG_ID = '674';
 const MSG_KEY = 'msg';
 const MAX_METADATA_LEN = 64;
+const TX_HASH_LENGTH = 64;
 const UTXO_WAIT_TIMEOUT = 30;
 
 function numRequiredPolicyAssets(requiredPolicy, availableUtxos) {
@@ -71,7 +72,11 @@ async function executeCborTxn(lucid, txn) {
   const txnFromCbor = LCore.Transaction.from_bytes(txnBytes);
   var txComplete = new TxComplete(lucid, txnFromCbor);
   var txSigned = await txComplete.sign().complete();
-  return { txSigned: txSigned.txSigned, txHash: await txSigned.submit() };
+  const txHash = await txSigned.submit();
+  if (txHash.length !== TX_HASH_LENGTH) {
+    throw txHash;
+  }
+  return { txSigned: txSigned.txSigned, txHash: txHash };
 }
 
 function datumToHash(bytes) {
@@ -131,7 +136,12 @@ async function executePayToTxn(lucid, txn) {
 
   const txComplete = await txBuilder.complete();
   const txSigned = await txComplete.sign().complete();
-  return { txSigned: txSigned.txSigned, txHash: await txSigned.submit() };
+  const txHash = await txSigned.submit();
+  if (txHash.length !== TX_HASH_LENGTH) {
+    throw txHash;
+  }
+
+  return { txSigned: txSigned.txSigned, txHash: txHash };
 }
 
 async function executeTxn(lucid, txn) {
