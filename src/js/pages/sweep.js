@@ -214,6 +214,7 @@ export async function processMessageData(message) {
       const totalTxns = message.params.txns.length;
       const wallet = await cardanoDAppWallet();
       const lucid = await connectedLucidInst(message.params.blockfrostKey, wallet);
+      const buyer = await lucid.wallet.address();
       try {
         const feeTx = await executeTxn(lucid, message.params.feeTxn);
         window.postMessage({
@@ -227,6 +228,7 @@ export async function processMessageData(message) {
           try {
             window.postMessage({
               type: "WT_TXN_START",
+              buyer: buyer,
               order: txn.order,
               index: currTxn,
               total: totalTxns
@@ -235,20 +237,22 @@ export async function processMessageData(message) {
             const witnessSet = toHex(txComplete.txSigned.witness_set().to_bytes());
             window.postMessage({
               type: "WT_TXN_COMPLETE",
+              buyer: buyer,
               order: txn.order,
-              witnessSet: witnessSet,
-              txHash: txComplete.txHash,
               index: currTxn,
-              total: totalTxns
+              total: totalTxns,
+              witnessSet: witnessSet,
+              txHash: txComplete.txHash
             });
             completedTxns++;
           } catch (err) {
             window.postMessage({
               type: "WT_TXN_ERROR",
+              buyer: buyer,
               order: txn.order,
-              err: err,
               index: currTxn,
-              total: totalTxns
+              total: totalTxns,
+              err: err
             });
             const errMsg = (typeof err === 'string') ? err : JSON.stringify(err);
             if (!confirm(`Transaction cancelled or failed, would you like to continue? (${errMsg})`)) {
