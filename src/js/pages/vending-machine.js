@@ -246,8 +246,10 @@ export async function stopVending(e) {
 class VendingMachine {
 
   static ADA_TO_LOVELACE = 1000000n;
+  static BACKOFF_WAIT = 5000;
   static LOVELACE = 'lovelace';
   static KEYS_TO_STRINGIFY = ['', 'blockfrostKey', 'mintPrice', 'nftPolicy', 'slot', 'pubKeyHash', 'profitVaultAddr', 'singleVendMax', 'vendRandomly', 'vendingMachineAddr'];
+  static MAX_RETRIES = 5;
   static MIN_MINT_PRICE_LOVELACE = 5000000n;
   static MIN_MINT_PRICE_ADA = VendingMachine.MIN_MINT_PRICE_LOVELACE / VendingMachine.ADA_TO_LOVELACE
   static NO_LIMIT = 100;
@@ -332,70 +334,87 @@ class VendingMachine {
       if (this.exclusions.includes(utxoWithIx)) {
         continue;
       }
+
       this.exclusions.push(utxoWithIx);
+      try {
+        var balance = utxo.assets[VendingMachine.LOVELACE];
+        var numMintsRequested = this.mintPrice ? Number(balance / this.mintPrice) : this.singleVendMax;
+        var numMints = Math.min(this.singleVendMax, this.metadata.length, numMintsRequested);
+        this.log(`Attempting to mint ${numMints} (${numMintsRequested} requested)`)
 
-      var balance = utxo.assets[VendingMachine.LOVELACE];
-      var numMintsRequested = this.mintPrice ? Number(balance / this.mintPrice) : this.singleVendMax;
-      var numMints = Math.min(this.singleVendMax, this.metadata.length, numMintsRequested);
-      this.log(`Attempting to mint ${numMints} (${numMintsRequested} requested)`)
+        var mintingPolicy = this.nftPolicy.getMintingPolicy();
+        var mergedMetadata = {};
+        var mintAssets = {};
+        var totalNameChars = 0;
+        for (var i = 0; i < numMints; i++) {
+          // TODO: How to alert about failed vends???
+          var nftMetadata = this.metadata.pop();
+          this.log(JSON.stringify(nftMetadata))
+          validate(Object.keys(nftMetadata).length == 1, `Only 1 asset name permitted per file, found ${Object.keys(nftMetadata)}`);
 
-      var mintingPolicy = this.nftPolicy.getMintingPolicy();
-      var mergedMetadata = {};
-      var mintAssets = {};
-      var totalNameChars = 0;
-      for (var i = 0; i < numMints; i++) {
-        // TODO: How to alert about failed vends???
-        var nftMetadata = this.metadata.pop();
-        this.log(JSON.stringify(nftMetadata))
-        validate(Object.keys(nftMetadata).length == 1, `Only 1 asset name permitted per file, found ${Object.keys(nftMetadata)}`);
-
-        var nftName = Object.keys(nftMetadata)[0];
-        var assetName = `${mintingPolicy.policyID}${toHex(VendingMachine.getTextEncoder().encode(nftName))}`;
-        mintAssets[assetName] = 1;
-        mergedMetadata[nftName] = nftMetadata[nftName];
-        totalNameChars += nftName.length;
-      }
-
-      var inputs = await this.lucid.inputsOf(utxo);
-      var inputAddress = validated(inputs[0], `Could not find input for ${utxo.txHash}#${utxo.outputIndex}`);
-      if (!numMints || !this.mintPrice) {
-        var overage = 0n;
-        var changeAddress = inputAddress;
-      } else {
-        var overage = balance - (BigInt(numMints) * this.mintPrice);
-        var changeAddress = this.profitVaultAddr;
-      }
-
-      var txBuilder = this.lucid.newTx().collectFrom([utxo]);
-      if (overage) {
-        txBuilder = txBuilder.payToAddress(inputAddress, {lovelace: overage});
-      }
-      if (numMints) {
-        txBuilder = txBuilder.attachMintingPolicy(mintingPolicy)
-                             .attachMetadata(NftPolicy.METADATA_KEY, {[mintingPolicy.policyID] : mergedMetadata})
-                             .mintAssets(mintAssets)
-                             .payToAddress(inputAddress, mintAssets);
-      }
-      if (this.nftPolicy.slot) {
-        txBuilder = txBuilder.validTo(this.lucid.utils.slotToUnixTime(this.nftPolicy.slot));
-      }
-      txBuilder.complete({changeAddress: changeAddress}).then(tx => {
-        if (tx.txComplete.body().mint()) {
-          tx = tx.signWithPrivateKey(this.nftPolicy.key.to_bech32());
+          var nftName = Object.keys(nftMetadata)[0];
+          var assetName = `${mintingPolicy.policyID}${toHex(VendingMachine.getTextEncoder().encode(nftName))}`;
+          mintAssets[assetName] = 1;
+          mergedMetadata[nftName] = nftMetadata[nftName];
+          totalNameChars += nftName.length;
         }
-        tx.signWithPrivateKey(this.vendingMachineSkey.to_bech32())
-          .complete()
-          .then((signedTx => {
-            this.log(signedTx.txSigned.body().to_json());
-            signedTx.submit().then((txHash => {
-              this.log(`Signed transaction submitted as ${txHash}`);
-              shortToast(`Successfully processed a new customer order!`);
-            }).bind(this)).catch(err => longToast(err));
-          }).bind(this)).catch(err => longToast(err));
-      }).catch(err => longToast(err));
+
+        var inputs = await this.#getInputsFor(utxo);
+        var inputAddress = validated(inputs[0], `Could not find input for ${utxo.txHash}#${utxo.outputIndex}`);
+        if (!numMints || !this.mintPrice) {
+          var overage = 0n;
+          var changeAddress = inputAddress;
+        } else {
+          var overage = balance - (BigInt(numMints) * this.mintPrice);
+          var changeAddress = this.profitVaultAddr;
+        }
+
+        var txBuilder = this.lucid.newTx().collectFrom([utxo]);
+        if (overage) {
+          txBuilder = txBuilder.payToAddress(inputAddress, {lovelace: overage});
+        }
+        if (numMints) {
+          txBuilder = txBuilder.attachMintingPolicy(mintingPolicy)
+                               .attachMetadata(NftPolicy.METADATA_KEY, {[mintingPolicy.policyID] : mergedMetadata})
+                               .mintAssets(mintAssets)
+                               .payToAddress(inputAddress, mintAssets);
+        }
+        if (this.nftPolicy.slot) {
+          txBuilder = txBuilder.validTo(this.lucid.utils.slotToUnixTime(this.nftPolicy.slot));
+        }
+        var txComplete = await txBuilder.complete({changeAddress: changeAddress});
+
+        if (txComplete.txComplete.body().mint()) {
+          txComplete = txComplete.signWithPrivateKey(this.nftPolicy.key.to_bech32());
+        }
+        const txSigned = await tx.signWithPrivateKey(this.vendingMachineSkey.to_bech32()).complete();
+
+        this.log(txSigned.txSigned.body().to_json());
+        const txHash = signedTx.submit();
+        this.log(`Signed transaction submitted as ${txHash}`);
+        shortToast(`Successfully processed a new customer order!`);
+      } catch (err) {
+        this.log(`AN ERROR OCCURRED -> DEBUG MANUALLY: ${err}`);
+        shortToast(err);
+      }
     }
 
     setTimeout((_ => this.vend()).bind(this), VendingMachine.VENDING_INTERVAL);
+  }
+
+  async #getInputsFor(utxo) {
+    for (var i = 0; i < VendingMachine.MAX_RETRIES; i++) {
+      const result = await fetch(
+        `${this.lucid.provider.data.url}/txs/${utxo.txHash}/utxos`,
+        { headers: { project_id: this.blockfrostKey } }
+      ).then(res => res.json());
+      if (result && !result.error) {
+        return result.inputs.map(input => input.address);
+      }
+      this.log(`${utxo.txHash} input retrieval failure: ${JSON.stringify(result)}`);
+      await new Promise(resolve => setTimeout(resolve, VendingMachine.BACKOFF_WAIT));
+    }
+    throw `Failed to get inputs after ${VendingMachine.MAX_RETRIES}`;
   }
 
   shutDown() {
