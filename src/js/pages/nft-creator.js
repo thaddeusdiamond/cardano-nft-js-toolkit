@@ -88,6 +88,21 @@ export function generatePolicyScriptAndKey(e, policyAckDom, blockfrostDom, privK
   document.querySelector(policyAckDom).style.display = 'block';
 }
 
+export function handleDappJsMessages(event, blockfrostDom, datetimeDom, slotDom) {
+  // We only accept messages from ourselves
+  if (event.source != window || !event.data.type) {
+    return;
+  }
+  switch (event.data.type) {
+    case "CARDANO_DAPP_JS_CONNECT":
+      NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostDom, datetimeDom, slotDom);
+      break;
+    default:
+      // Unknown message, return
+      break;
+  }
+}
+
 export function showInputForExistingKey(e, formDom, policyKeyId, policySlotId, buttonsDom, displayDom, classNames) {
   e && e.preventDefault();
 
