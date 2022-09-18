@@ -17,7 +17,7 @@
     "copy-webpack-plugin": "^11.0.0",
     "express": "^4.18.1",
     "lodash": "^4.17.21",
-    "lucid-cardano": "^0.5.1",
+    "lucid-cardano": "^0.6.0",
     "mime": "^3.0.0",
     "nft.storage": "^6.3.0",
     "toastify-js": "^1.11.2",

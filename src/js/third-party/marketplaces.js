@@ -1,4 +1,4 @@
-import {Construct, Data, Utils} from "lucid-cardano";
+import {Constr, Data, Utils} from "lucid-cardano";
 
 const MarketType = {
   EPOCHART: 'epochart_schema',
