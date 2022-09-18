@@ -99,7 +99,7 @@
       NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container');
 
       document.querySelector("#nft-policy-create").addEventListener("click", e => NftToolkit.NftCreator.generatePolicyScriptAndKey(e, '#nft-policy-ack', '#blockfrost-api-key', 'nft-policy-key', 'expiration-datetime', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', '', 'col-4'));
-      document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#vending-machine-form', 'nft-policy-key', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', 'col-3 offset-2'));
+      document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#vending-machine-form', 'nft-policy-key', 'nft-policy-slot', 'use-all-scripts', '#nft-key-buttons', '#nft-key-display', 'col-4'));
       document.querySelector('#nft-policy-ack').addEventListener('click', e => NftToolkit.NftCreator.handlePolicyAcknowledgement(e, '#nft-policy-ack', '#vending-machine-form'));
 
       document.querySelector("#vending-machine-create").addEventListener("click", async e => NftToolkit.VendingMachine.generateVmKeyAndAddr(e, '#vending-machine-ack', '#blockfrost-api-key', 'vending-machine-key', 'vending-machine-addr', '#vending-machine-buttons', '#vending-machine-display', ));
@@ -116,7 +116,7 @@
           document.querySelector('#vending-machine-start').disabled = true;
           try {
             await NftToolkit.VendingMachine.startVending(
-              e, '#vending-machine-output', '#blockfrost-api-key', '#expiration-datetime', '#nft-policy-slot', '#nft-policy-key', '#vending-machine-addr', '#vending-machine-key', '#profit-vault-addr', '#mint-price', '#single-vend-max', '#vend-randomly', '#nft-files-selector'
+              e, '#vending-machine-output', '#blockfrost-api-key', '#expiration-datetime', '#nft-policy-slot', '#use-all-scripts', '#nft-policy-key', '#vending-machine-addr', '#vending-machine-key', '#profit-vault-addr', '#mint-price', '#single-vend-max', '#vend-randomly', '#nft-files-selector'
             );
 
             document.querySelector('#vending-machine-stop').style.display = 'block';

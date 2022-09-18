@@ -9,6 +9,19 @@ export function validated(assertion, error) {
   return assertion;
 }
 
+export function createCheckboxInput(id, cssClass, label) {
+  const inputElement = createFormElement('input', id, '');
+  inputElement.type = 'checkbox';
+
+  const spanElement = createFormElement('span', `${id}-span`, '');
+  spanElement.textContent = label;
+
+  const labelElement = createFormElement('label', `${id}-label`, cssClass);
+  labelElement.appendChild(inputElement);
+  labelElement.appendChild(spanElement);
+  return labelElement
+}
+
 export function createTextInput(id, cssClass, placeholder) {
   var inputElement = createFormElement('input', id, cssClass, placeholder);
   inputElement.type = 'text';
@@ -23,6 +36,8 @@ function createFormElement(type, id, cssClass, placeholder) {
   var element = document.createElement(type);
   element.id = id;
   element.className = cssClass;
-  element.placeholder = placeholder;
+  if (placeholder) {
+    element.placeholder = placeholder;
+  }
   return element;
 }

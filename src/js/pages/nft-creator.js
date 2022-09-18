@@ -9,7 +9,7 @@ import * as NftPolicy from "../nft-toolkit/nft-policy.js";
 import * as NftStorage from "../third-party/nft-storage.js";
 
 import {shortToast, longToast} from "../third-party/toastify-utils.js";
-import {validate, validated, createTextInput} from "../nft-toolkit/utils.js";
+import {validate, validated, createTextInput, createCheckboxInput} from "../nft-toolkit/utils.js";
 import {RebateCalculator} from "../nft-toolkit/rebate-calculator.js";
 
 const CIP0025_VERSION = '1.0';
@@ -103,13 +103,14 @@ export function handleDappJsMessages(event, blockfrostDom, datetimeDom, slotDom)
   }
 }
 
-export function showInputForExistingKey(e, formDom, policyKeyId, policySlotId, buttonsDom, displayDom, classNames) {
+export function showInputForExistingKey(e, formDom, policyKeyId, policySlotId, useAllScriptsId, buttonsDom, displayDom, inputClassNames, checkboxClassNames) {
   e && e.preventDefault();
 
   document.querySelector(buttonsDom).style.display = 'none';
   document.querySelector(displayDom).replaceChildren(
-    createTextInput(policyKeyId, classNames, 'Paste NFT key here...'),
-    createTextInput(policySlotId, classNames, '(Optional) Enter NFT Slot Expiration Here...')
+    createTextInput(policyKeyId, inputClassNames, 'Paste NFT key here...'),
+    createTextInput(policySlotId, inputClassNames, '(Optional) Enter NFT Slot Expiration Here...'),
+    createCheckboxInput(useAllScriptsId, checkboxClassNames, 'Check this box if you are importing this project from NMKR Studio')
   );
 
   enableRecursively(document.querySelector(formDom));
@@ -153,7 +154,7 @@ export function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
   }).catch(err => shortToast(`An error occurred uploading to NFT.storage: ${err}`));
 }
 
-export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numTraits, numMintsDom) {
+export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, useAllScriptsDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numTraits, numMintsDom) {
   e && e.preventDefault();
 
   try {
@@ -166,12 +167,14 @@ export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slo
     const lucid = await LucidInst.getLucidInstance(blockfrostKey);
     validate(lucid, 'Your blockfrost key does not match the network of your wallet.');
 
+    const useAllScripts = document.querySelector(useAllScriptsDom)?.checked;
+
     const nftName = validated(document.querySelector(nameDom)?.value, 'Please enter a name for NFT in the text box!');
     const nftMetadata = generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTraits)
     const scriptSKeyText = validated(NftPolicy.NftPolicy.getKeyFromInputOrSpan(scriptSKeyDom), 'Must either generate or enter a valid secret key before proceeding');
     const scriptSKey = NftPolicy.NftPolicy.privateKeyFromCbor(scriptSKeyText);
     const policyKeyHash = toHex(scriptSKey.to_public().hash().to_bytes());
-    const nftPolicy = new NftPolicy.NftPolicy(policyExpirationSlot, scriptSKey, policyKeyHash);
+    const nftPolicy = new NftPolicy.NftPolicy(policyExpirationSlot, scriptSKey, policyKeyHash, useAllScripts);
     const mintingPolicy = nftPolicy.getMintingPolicy();
     const numMints = validated(parseInt(document.querySelector(numMintsDom).value), 'Please enter the number of NFTs you would like to mint');
     if (numMints < 1 || numMints > Secrets.MAX_QUANTITY) {

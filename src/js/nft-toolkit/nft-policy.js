@@ -65,16 +65,20 @@ export class NftPolicy {
     }
   }
 
-  constructor(policyExpirationSlot, policySKey, policyPubKeyHash) {
+  constructor(policyExpirationSlot, policySKey, policyPubKeyHash, useAllScripts) {
     this.slot = policyExpirationSlot;
     this.key = policySKey;
     this.pubKeyHash = policyPubKeyHash;
+    this.useAllScripts = useAllScripts;
     this.mintingPolicy = this.#constructMintingPolicy();
+    this.policyID = this.mintingPolicy.policyID;
   }
 
   #constructMintingPolicy() {
     if (this.slot) {
       return this.#getSigNativeTimelockPolicy();
+    } else if (this.useAllScripts) {
+      return this.#getSigNativeWithAllScripts();
     }
     return this.#getSigNativeScript();
   }
@@ -93,6 +97,20 @@ export class NftPolicy {
       policyID: toHex(sigNativeScript.hash().to_bytes()),
       script: toHex(sigNativeScript.to_bytes()),
       scriptObj: sigNativeScript
+    }
+  }
+
+  #getSigNativeWithAllScripts() {
+    var policyNativeScripts = LCore.NativeScripts.new();
+    policyNativeScripts.add(this.#getSigNativeScript().scriptObj);
+    var policyAllScripts = LCore.ScriptAll.new(policyNativeScripts);
+    var policyScript = LCore.NativeScript.new_script_all(policyAllScripts);
+
+    return {
+      type: "Native",
+      policyID: toHex(policyScript.hash().to_bytes()),
+      script: toHex(policyScript.to_bytes()),
+      scriptObj: policyScript
     }
   }
 

@@ -194,26 +194,27 @@ function validateAssetMetadata(key, metadataVal, metadataFilename) {
 
 export async function startVending(
   e, outputDom, blockfrostApiKeyDom, expirationDatetimeDom, nftPolicySlotDom,
-  nftPolicyKeyDom, vendingMachineAddrDom, vendingMachineSkeyDom,
+  useAllScriptsDom, nftPolicyKeyDom, vendingMachineAddrDom, vendingMachineSkeyDom,
   profitVaultAddrDom, mintPriceDom, singleVendMaxDom, vendRandomlyDom, metadataFilesDom
 ) {
   e && e.preventDefault();
 
   try {
-    var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
-    var blockfrostKey = validated(document.querySelector(blockfrostApiKeyDom)?.value, 'Please enter a valid Blockfrost API key in the text box');
+    const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
+    const blockfrostKey = validated(document.querySelector(blockfrostApiKeyDom)?.value, 'Please enter a valid Blockfrost API key in the text box');
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before vending using "Connect Wallet" button');
     validate(MetadataRef, 'Please upload metadata files before turning the vending machine on');
     validate(HasAcknowledgedKeyGeneration, 'Please acknowledge you have written down your generated vending machine keys and address before proceeding');
     await validatePermissionsForRequiredAssets(cardanoDApp, blockfrostKey, MetadataRef.length);
 
-    var policyExpirationSlot = await NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostApiKeyDom, expirationDatetimeDom, nftPolicySlotDom);
-    var policySKeyText = validated(NftPolicy.NftPolicy.getKeyFromInputOrSpan(nftPolicyKeyDom), 'Must either generate or enter a valid secret key before proceeding');
-    var policySKey = NftPolicy.NftPolicy.privateKeyFromCbor(policySKeyText);
-    var policyKeyHash = toHex(policySKey.to_public().hash().to_bytes());
+    const policyExpirationSlot = await NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostApiKeyDom, expirationDatetimeDom, nftPolicySlotDom);
+    const policySKeyText = validated(NftPolicy.NftPolicy.getKeyFromInputOrSpan(nftPolicyKeyDom), 'Must either generate or enter a valid secret key before proceeding');
+    const policySKey = NftPolicy.NftPolicy.privateKeyFromCbor(policySKeyText);
+    const policyKeyHash = toHex(policySKey.to_public().hash().to_bytes());
+    const useAllScripts = document.querySelector(useAllScriptsDom)?.checked;
 
-    var nftPolicy = new NftPolicy.NftPolicy(policyExpirationSlot, policySKey, policyKeyHash);
-    var vendingMachine = new VendingMachine(MetadataRef, nftPolicy, blockfrostKey, vendingMachineAddrDom, vendingMachineSkeyDom, profitVaultAddrDom, mintPriceDom, singleVendMaxDom, vendRandomlyDom, metadataFilesDom, outputDom);
+    const nftPolicy = new NftPolicy.NftPolicy(policyExpirationSlot, policySKey, policyKeyHash, useAllScripts);
+    const vendingMachine = new VendingMachine(MetadataRef, nftPolicy, blockfrostKey, vendingMachineAddrDom, vendingMachineSkeyDom, profitVaultAddrDom, mintPriceDom, singleVendMaxDom, vendRandomlyDom, metadataFilesDom, outputDom);
 
     await vendingMachine.initialize();
     VendingMachineInst = vendingMachine;
@@ -248,7 +249,7 @@ class VendingMachine {
   static ADA_TO_LOVELACE = 1000000n;
   static BACKOFF_WAIT = 5000;
   static LOVELACE = 'lovelace';
-  static KEYS_TO_STRINGIFY = ['', 'blockfrostKey', 'mintPrice', 'nftPolicy', 'slot', 'pubKeyHash', 'profitVaultAddr', 'singleVendMax', 'vendRandomly', 'vendingMachineAddr'];
+  static KEYS_TO_STRINGIFY = ['', 'blockfrostKey', 'mintPrice', 'nftPolicy', 'slot', 'policyID', 'pubKeyHash', 'profitVaultAddr', 'singleVendMax', 'useAllScripts', 'vendRandomly', 'vendingMachineAddr'];
   static MAX_RETRIES = 5;
   static MIN_MINT_PRICE_LOVELACE = 5000000n;
   static MIN_MINT_PRICE_ADA = VendingMachine.MIN_MINT_PRICE_LOVELACE / VendingMachine.ADA_TO_LOVELACE

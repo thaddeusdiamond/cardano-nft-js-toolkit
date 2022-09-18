@@ -107,12 +107,12 @@
       NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container');
 
       document.querySelector("#nft-policy-create").addEventListener("click", e => NftToolkit.NftCreator.generatePolicyScriptAndKey(e, '#nft-policy-ack', '#blockfrost-api-key', 'nft-policy-key', 'expiration-datetime', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', '', 'col-4'));
-      document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#nft-creator-form', 'nft-policy-key', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', 'col-3 offset-2'));
+      document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#nft-creator-form', 'nft-policy-key', 'nft-policy-slot', 'use-all-scripts', '#nft-key-buttons', '#nft-key-display', 'col-4'));
       document.querySelector('#nft-policy-ack').addEventListener('click', e => NftToolkit.NftCreator.handlePolicyAcknowledgement(e, '#nft-policy-ack', '#nft-creator-form'));
 
       document.querySelector("#nft-file-upload").addEventListener("click", e => NftToolkit.NftCreator.uploadToIpfs(e, '#nft-storage-key', '#nft-file-selector', '#nft-ipfs-display'));
 
-      document.querySelector("#nft-mint-item").addEventListener("click", e => NftToolkit.NftCreator.performMintTxn(e, '#blockfrost-api-key', '#nft-name', '#expiration-datetime', '#nft-policy-slot', '#nft-policy-key', '#nft-ipfs-display', '#nft-file-selector', '#nft-trait', 8, '#nft-mint-number'));
+      document.querySelector("#nft-mint-item").addEventListener("click", e => NftToolkit.NftCreator.performMintTxn(e, '#blockfrost-api-key', '#nft-name', '#expiration-datetime', '#nft-policy-slot', '#use-all-scripts', '#nft-policy-key', '#nft-ipfs-display', '#nft-file-selector', '#nft-trait', 8, '#nft-mint-number'));
 
       document.querySelector("#blockfrost-api-key").addEventListener("input", e => NftToolkit.NftPolicy.updateDatetimeSlotSpan(undefined, '#blockfrost-api-key', '#expiration-datetime', '#nft-policy-slot'));
       window.addEventListener("message", event => {
