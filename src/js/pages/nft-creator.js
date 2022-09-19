@@ -123,7 +123,7 @@ export function handlePolicyAcknowledgement(e, policyAckDom, formDom){
 }
 
 
-export function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
+export async function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
   e && e.preventDefault();
 
   var ipfsDisplay = document.querySelector(ipfsDisplayDom);
@@ -144,14 +144,23 @@ export function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
     return;
   }
 
-  var file = fileInput.files[0];
-  NftStorage.uploadFromFileInput(nftStorageToken, file).then(cid => {
-    var ipfsIoAnchor = `<a id=${IPFS_LINK_ID} target="_blank" rel="noopener noreferrer" href="https://ipfs.io/ipfs/${cid}">${cid}</a>`;
-    var fileNameSpan = `<span id=${FILENAME_ID}>${file.name}</span>`;
-    var mediaTypeSpan = `<span id=${FILETYPE_ID}>${mime.getType(file.name)}</span>`;
+  try {
+    const file = fileInput.files[0];
+    const mimeType = mime.getType(file.name);
+    const cid = await NftStorage.uploadFromFileInput(nftStorageToken, file);
+
+    if (!mimeType.startsWith(IMAGE_MIME_PREFIX)) {
+      alert(`File '${file.name}' is of type '${mimeType}', not an image.  It will not show a thumbnail on web viewers like pool.pm.  To add a thumbnail to your NFT, please enter a trait at the right with Name 'image' and a link to your thumbnail in 'Value' (e.g., 'ipfs://Qmz...')`);
+    }
+
+    const ipfsIoAnchor = `<a id=${IPFS_LINK_ID} target="_blank" rel="noopener noreferrer" href="https://ipfs.io/ipfs/${cid}">${cid}</a>`;
+    const fileNameSpan = `<span id=${FILENAME_ID}>${file.name}</span>`;
+    const mediaTypeSpan = `<span id=${FILETYPE_ID}>${mimeType}</span>`;
     ipfsDisplay.innerHTML = `${ipfsIoAnchor}<br/>(${fileNameSpan}&nbsp;[${mediaTypeSpan}])`;
     shortToast('Successfully uploaded your file using NFT.Storage!');
-  }).catch(err => shortToast(`An error occurred uploading to NFT.storage: ${err}`));
+  } catch (err) {
+    shortToast(`An error occurred uploading to NFT.storage: ${err}`);
+  }
 }
 
 export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, useAllScriptsDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numMintsDom) {
