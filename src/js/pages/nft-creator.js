@@ -154,7 +154,7 @@ export function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
   }).catch(err => shortToast(`An error occurred uploading to NFT.storage: ${err}`));
 }
 
-export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, useAllScriptsDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numTraits, numMintsDom) {
+export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, useAllScriptsDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numMintsDom) {
   e && e.preventDefault();
 
   try {
@@ -170,7 +170,7 @@ export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slo
     const useAllScripts = document.querySelector(useAllScriptsDom)?.checked;
 
     const nftName = validated(document.querySelector(nameDom)?.value, 'Please enter a name for NFT in the text box!');
-    const nftMetadata = generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTraits)
+    const nftMetadata = generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix)
     const scriptSKeyText = validated(NftPolicy.NftPolicy.getKeyFromInputOrSpan(scriptSKeyDom), 'Must either generate or enter a valid secret key before proceeding');
     const scriptSKey = NftPolicy.NftPolicy.privateKeyFromCbor(scriptSKeyText);
     const policyKeyHash = toHex(scriptSKey.to_public().hash().to_bytes());
@@ -200,7 +200,7 @@ export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slo
       return;
     }
 
-    const domToClear = getDomElementsToClear(traitsPrefix, numTraits, nameDom, fileDom, ipfsDisplayDom, numMintsDom);
+    const domToClear = getDomElementsToClear(traitsPrefix, nameDom, fileDom, ipfsDisplayDom, numMintsDom);
 
     lucid.selectWallet(wallet);
     const address = await lucid.wallet.address();
@@ -264,7 +264,7 @@ function wrapMetadataFor(policyID, innerMetadata) {
   return { [policyID]: innerMetadata, version: CIP0025_VERSION };
 }
 
-function generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTraits) {
+function generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix) {
   var cip0025Metadata = {name: nftName};
 
   var ipfsDisplayEls = document.querySelector(ipfsDisplayDom);
@@ -288,24 +288,25 @@ function generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix, numTr
     }];
   }
 
-  for (var i = 1; i <= numTraits; i++) {
-    var traitKey = document.querySelector(`${traitsPrefix}-${KEY_SUFFIX}-${i}`).value;
-    var traitValue = document.querySelector(`${traitsPrefix}-${VALUE_SUFFIX}-${i}`).value;
+
+  document.querySelectorAll(`[id^=${traitsPrefix}-${KEY_SUFFIX}]`).forEach(trait => {
+    const traitKey = trait.value;
+    const traitValue = document.getElementById(trait.id.replace(KEY_SUFFIX, VALUE_SUFFIX)).value;
     if (traitKey) {
       validate(traitValue.length <= NftPolicy.NftPolicy.MAX_METADATA_LEN, `Metadata value for ${traitKey} is greater than Cardano will allow (max of ${NftPolicy.NftPolicy.MAX_METADATA_LEN} chars)`);
       cip0025Metadata[traitKey] = traitValue;
     } else if (traitValue) {
       throw `Missing name for trait '${traitValue}'`;
     }
-  }
+  });
   return {[nftName]: cip0025Metadata};
 }
 
-function getDomElementsToClear(traitsPrefix, numTraits, ...otherDomElements) {
+function getDomElementsToClear(traitsPrefix, ...otherDomElements) {
   var domElements = [];
-  for (var i = 1; i <= numTraits; i++) {
-    domElements.push(`${traitsPrefix}-${VALUE_SUFFIX}-${i}`);
-  }
+  document.querySelectorAll(`[id^=${traitsPrefix}-${VALUE_SUFFIX}]`).forEach(trait =>
+    domElements.push(`#${trait.id}`)
+  );
   for (const domElement of otherDomElements) {
     domElements.push(domElement);
   }

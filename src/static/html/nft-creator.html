@@ -112,7 +112,7 @@
 
       document.querySelector("#nft-file-upload").addEventListener("click", e => NftToolkit.NftCreator.uploadToIpfs(e, '#nft-storage-key', '#nft-file-selector', '#nft-ipfs-display'));
 
-      document.querySelector("#nft-mint-item").addEventListener("click", e => NftToolkit.NftCreator.performMintTxn(e, '#blockfrost-api-key', '#nft-name', '#expiration-datetime', '#nft-policy-slot', '#use-all-scripts', '#nft-policy-key', '#nft-ipfs-display', '#nft-file-selector', '#nft-trait', 8, '#nft-mint-number'));
+      document.querySelector("#nft-mint-item").addEventListener("click", e => NftToolkit.NftCreator.performMintTxn(e, '#blockfrost-api-key', '#nft-name', '#expiration-datetime', '#nft-policy-slot', '#use-all-scripts', '#nft-policy-key', '#nft-ipfs-display', '#nft-file-selector', 'nft-trait', '#nft-mint-number'));
 
       document.querySelector("#blockfrost-api-key").addEventListener("input", e => NftToolkit.NftPolicy.updateDatetimeSlotSpan(undefined, '#blockfrost-api-key', '#expiration-datetime', '#nft-policy-slot'));
       window.addEventListener("message", event => {
