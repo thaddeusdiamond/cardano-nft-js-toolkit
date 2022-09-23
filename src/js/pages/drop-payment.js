@@ -95,7 +95,7 @@ export async function walletWhitelistedAssets(blockfrostKey, whitelistPolicies, 
 export async function mintNow(blockfrostKey, paymentAddr, price, whitelistPolicies, exclusions) {
   var cardanoDApp = CardanoDApp.getCardanoDAppInstance();
   if (!cardanoDApp.isWalletConnected()) {
-    shortToast('Please connect a wallet before minting using "Connect Wallet" button (desktop only)');
+    shortToast('Please connect a wallet before minting using "Connect Wallet" button');
     return;
   }
 
