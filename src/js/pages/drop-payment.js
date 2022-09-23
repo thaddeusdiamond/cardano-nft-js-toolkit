@@ -2,6 +2,7 @@ import * as CardanoDApp from "../third-party/cardano-dapp-js.js";
 import * as LucidInst from "../third-party/lucid-inst.js";
 
 import {shortToast, longToast} from "../third-party/toastify-utils.js";
+import {validate} from "../nft-toolkit/utils.js";
 
 const MINT_COUNT_DOM = "#mint-count";
 
@@ -111,6 +112,7 @@ export async function mintNow(blockfrostKey, paymentAddr, price, whitelistPolici
     const walletAddress = await lucid.wallet.address();
 
     var paymentAmount = getCurrentCount() * price;
+    validate(paymentAmount > 0, "Must mint at least 1 NFT at a time");
     var txBuilder = lucid.newTx().payToAddress(paymentAddr, { lovelace: paymentAmount });
 
     const whitelistedAssets = await getWhitelistedAssets(whitelistPolicies, exclusions, lucid);
