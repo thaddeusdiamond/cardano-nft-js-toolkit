@@ -1,4 +1,3 @@
-import arrayShuffle from 'array-shuffle';
 import {toHex, networkToId, C as LCore} from "lucid-cardano";
 
 import * as Secrets from "../secrets.js";
@@ -298,7 +297,7 @@ class VendingMachine {
 
     validate(this.metadata !== undefined, "Metadata may be empty but it must not be undefined");
     if (this.vendRandomly) {
-      this.metadata = arrayShuffle(this.metadata);
+      this.metadata.sort((a, b) => 0.5 - Math.random());
     }
 
     var lucid = await LucidInst.getLucidInstance(this.blockfrostKey);
