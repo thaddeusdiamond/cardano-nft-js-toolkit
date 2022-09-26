@@ -229,14 +229,6 @@ export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slo
         alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least ${Secrets.REQUIRED_POLICY_MIN} NFTs with policy ID ${Secrets.REQUIRED_POLICY_KEY} - no need to refresh the page!`);
         return;
       }
-    } else if (lucid.network === 'Testnet') {
-      // Manual here just to ensure there's no funny business switching around networks in the debugger
-      if (!(document.querySelector(blockfrostDom).value.startsWith('testnet') && (lucid.network === 'Testnet'))) {
-        throw 'Odd state detected... contact developer for more information.'
-      }
-    } else {
-      longToast(`Unknown network detected ${lucid.network}`);
-      return;
     }
 
     var txBuilder = lucid.newTx()
@@ -323,7 +315,7 @@ function getDomElementsToClear(traitsPrefix, ...otherDomElements) {
 }
 
 async function existsOnChain(assetName, blockfrostKey) {
-  const blockfrostSettings = await LucidInst.getBlockfrostParams(await LucidInst.getNetworkId());
+  const blockfrostSettings = await LucidInst.getBlockfrostParams(blockfrostKey);
   let result = await fetch(`${blockfrostSettings.api}/assets/${assetName}`,
     { headers: { project_id: blockfrostKey } }
   ).then(res => res.json());

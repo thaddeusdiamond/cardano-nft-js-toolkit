@@ -108,13 +108,6 @@ async function validatePermissionsForRequiredAssets(cardanoDApp, blockfrostKey, 
       alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least 1 NFT with policy ID ${Secrets.REQUIRED_POLICY_KEY} for every ${Secrets.REQUIRED_VENDING_MACHINE_RATIO} metadata files you upload - no need to refresh the page!`);
       throw 'Vending machine aborting';
     }
-  } else if (lucid.network === 'Testnet') {
-    // Manual here just to ensure there's no funny business switching around networks in the debugger
-    if (!(blockfrostKey.startsWith('testnet') && (lucid.network === 'Testnet'))) {
-      throw 'Odd state detected... contact developer for more information.'
-    }
-  } else {
-    throw `Unknown network detected ${lucid.network}`;
   }
 }
 
@@ -348,7 +341,6 @@ class VendingMachine {
         var mintAssets = {};
         var totalNameChars = 0;
         for (var i = 0; i < numMints; i++) {
-          // TODO: How to alert about failed vends???
           var nftMetadata = this.metadata.pop();
           this.log(JSON.stringify(nftMetadata))
           validate(Object.keys(nftMetadata).length == 1, `Only 1 asset name permitted per file, found ${Object.keys(nftMetadata)}`);
@@ -388,12 +380,12 @@ class VendingMachine {
         if (txComplete.txComplete.body().mint()) {
           txComplete = txComplete.signWithPrivateKey(this.nftPolicy.key.to_bech32());
         }
-        const txSigned = await tx.signWithPrivateKey(this.vendingMachineSkey.to_bech32()).complete();
+        const txSigned = await txComplete.signWithPrivateKey(this.vendingMachineSkey.to_bech32()).complete();
 
         this.log(txSigned.txSigned.body().to_json());
-        const txHash = signedTx.submit();
+        const txHash = await txSigned.submit();
         this.log(`Signed transaction submitted as ${txHash}`);
-        shortToast(`Successfully processed a new customer order!`);
+        shortToast(`Successfully processed a new customer order for ${numMints} NFTs!`);
       } catch (err) {
         this.log(`AN ERROR OCCURRED -> DEBUG MANUALLY: ${err}`);
         shortToast(err);

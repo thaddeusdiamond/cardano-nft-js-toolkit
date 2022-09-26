@@ -2,9 +2,16 @@ import {Lucid, Blockfrost} from "lucid-cardano";
 
 import * as CardanoDAppJs from "../third-party/cardano-dapp-js.js";
 
-const TESTNET = 0;
-const MAINNET = 1;
-const LUCID_NETWORK_NAMES = ['testnet', 'mainnet'];
+import {shortToast} from "../third-party/toastify-utils.js";
+
+const TESTNET_ID = 0;
+const MAINNET_ID = 1;
+
+const PREPROD = 'preprod';
+const PREVIEW = 'preview';
+const TESTNET = 'testnet';
+const MAINNET = 'mainnet';
+const LUCID_NETWORK_NAMES = [[PREPROD, PREVIEW, TESTNET], [MAINNET]];
 
 export function getLucidInstance(blockfrostKey) {
   var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
@@ -14,10 +21,10 @@ export function getLucidInstance(blockfrostKey) {
   }
 
   return getNetworkId().then(networkId => {
-    if (!blockfrostKey.startsWith(LUCID_NETWORK_NAMES[networkId])) {
+    if (!LUCID_NETWORK_NAMES[networkId].includes(blockfrostKey.slice(0, 7))) {
       return undefined;
     }
-    var blockfrostParams = getBlockfrostParams(networkId);
+    var blockfrostParams = getBlockfrostParams(blockfrostKey);
     return Lucid.new(new Blockfrost(blockfrostParams.api, blockfrostKey), blockfrostParams.network);
   })
 }
@@ -29,11 +36,8 @@ export function getNetworkId() {
   }
   return cardanoDApp.getConnectedWallet().then(wallet => {
     return wallet.getNetworkId().then(networkId => {
-      if (networkId != MAINNET && networkId != TESTNET) {
-          Toastify({
-            text: `Invalid networkId ${networkId} detected`,
-            duration: 5000
-          }).showToast();
+      if (networkId != MAINNET_ID && networkId != TESTNET_ID) {
+          shortToast(`Invalid networkId ${networkId} detected`);
           return;
       }
       return networkId;
@@ -41,17 +45,28 @@ export function getNetworkId() {
   });
 }
 
-export function getBlockfrostParams(networkId) {
-  if (networkId == MAINNET) {
+export function getBlockfrostParams(blockfrostKey) {
+  const blockfrostKeyMarker = blockfrostKey.toLowerCase().slice(0, 7);
+  if (blockfrostKeyMarker === MAINNET) {
     return {
       api: 'https://cardano-mainnet.blockfrost.io/api/v0',
       network: 'Mainnet'
     }
-  } else if (networkId == TESTNET) {
+  } else if (blockfrostKeyMarker === PREPROD) {
+      return {
+        api: 'https://cardano-preprod.blockfrost.io/api/v0',
+        network: 'Preprod'
+      }
+  } else if (blockfrostKeyMarker === PREVIEW) {
+      return {
+        api: 'https://cardano-preview.blockfrost.io/api/v0',
+        network: 'Preview'
+      }
+  } else if (blockfrostKeyMarker === TESTNET) {
       return {
         api: 'https://cardano-testnet.blockfrost.io/api/v0',
         network: 'Testnet'
       }
   }
-  throw `Unknown network ID returned by lucid: ${networkId}`;
+  throw `Unknown blockfrost key used: ${blockfrostKey}`;
 }
