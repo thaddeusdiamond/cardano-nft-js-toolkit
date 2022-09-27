@@ -248,7 +248,7 @@ export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slo
     if (update) {
       longToast('Will ask you to burn the NFT when mint is complete, please wait...');
       setTimeout(
-        (async () => attemptBurn(assetName, mintingPolicy, scriptSKey, address, lucid, 1)).bind(this),
+        (async () => attemptBurn(assetName, mintingPolicy, scriptSKey, policyExpirationSlot, address, lucid, 1)).bind(this),
         MINT_COMPLETION_WAIT_INTERVAL
       );
     }
@@ -325,13 +325,16 @@ async function existsOnChain(assetName, blockfrostKey) {
   return true;
 }
 
-async function attemptBurn(assetName, mintingPolicy, scriptSKey, address, lucid, attempt) {
+async function attemptBurn(assetName, mintingPolicy, scriptSKey, policyExpirationSlot, address, lucid, attempt) {
   try {
     const mintAssets = { [assetName]: -1 };
-    const txComplete = await lucid.newTx()
+    var txBuilder = await lucid.newTx()
                                 .attachMintingPolicy(mintingPolicy)
-                                .mintAssets(mintAssets)
-                                .complete();
+                                .mintAssets(mintAssets);
+    if (policyExpirationSlot) {
+      txBuilder = txBuilder.validTo(lucid.utils.slotToUnixTime(policyExpirationSlot));
+    }
+    const txComplete = await txBuilder.complete();
     const txSigned = await txComplete.signWithPrivateKey(scriptSKey.to_bech32()).sign().complete();
     const txSubmit = await txSigned.submit();
     longToast(`Successfully sent burning tx: ${txSubmit}!`);
@@ -339,7 +342,7 @@ async function attemptBurn(assetName, mintingPolicy, scriptSKey, address, lucid,
     if (attempt < MAX_BURN_ATTEMPTS) {
       longToast(`Error occurred burning, will retry shortly (${err})`);
       setTimeout(
-        (async () => attemptBurn(assetName, rebate, mintingPolicy, scriptSKey, address, lucid, attempt + 1)).bind(this),
+        (async () => attemptBurn(assetName, rebate, mintingPolicy, scriptSKey, policyExpirationSlot, address, lucid, attempt + 1)).bind(this),
         MINT_COMPLETION_WAIT_INTERVAL
       );
     } else {
