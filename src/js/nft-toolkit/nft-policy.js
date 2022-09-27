@@ -11,7 +11,6 @@ const SPAN_TYPE = 'SPAN';
 
 export class NftPolicy {
 
-  static CBOR_PREFIX = '5820';
   static MAX_METADATA_LEN = 64;
 
   static updateDatetimeSlotSpan(e, blockfrostDom, datePickerDom, slotDisplayDom) {
@@ -53,13 +52,12 @@ export class NftPolicy {
   }
 
   static privateKeyToCbor(privateKey) {
-    return `${NftPolicy.CBOR_PREFIX}${toHex(privateKey.as_bytes())}`;
+    return toHex(privateKey.to_bytes());
   }
 
   static privateKeyFromCbor(privateKeyCbor) {
     try {
-      var privateKeyHex = fromHex(privateKeyCbor.substring(NftPolicy.CBOR_PREFIX.length));
-      return LCore.PrivateKey.from_normal_bytes(privateKeyHex);
+      return LCore.PrivateKey.from_bytes(fromHex(privateKeyCbor));
     } catch (err) {
       throw `Could not construct private key from '${privateKeyCbor}': ${err}`
     }
