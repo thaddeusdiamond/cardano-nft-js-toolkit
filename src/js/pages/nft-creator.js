@@ -15,12 +15,14 @@ import {RebateCalculator} from "../nft-toolkit/rebate-calculator.js";
 const CIP0025_VERSION = '1.0';
 const FILENAME_ID = 'local-file-name';
 const FILETYPE_ID = 'local-file-mimetype';
-const IMAGE_MIME_PREFIX = 'image/'
+const IMAGE_FIELD = 'image';
+const IMAGE_MIME_PREFIX = 'image/';
 const INPUT_TYPE = 'INPUT';
 const IPFS_LINK_ID = 'ipfs-io-link';
 const KEY_SUFFIX = 'name';
 const LOVELACE = 'lovelace';
 const MAX_BURN_ATTEMPTS = 10;
+const METADATA_SPLITTER = new RegExp(`(.{1,${NftPolicy.NftPolicy.MAX_METADATA_LEN}})`, 'g');
 const MINT_COMPLETION_WAIT_INTERVAL = 60000;
 const SINGLE_NFT = 1;
 const SPAN_TYPE = 'SPAN';
@@ -153,7 +155,7 @@ export async function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
       alert(`File '${file.name}' is of type '${mimeType}', not an image.  It will not show a thumbnail on web viewers like pool.pm.  To add a thumbnail to your NFT, please enter a trait at the right with Name 'image' and a link to your thumbnail in 'Value' (e.g., 'ipfs://Qmz...')`);
     }
 
-    const ipfsIoAnchor = `<a id=${IPFS_LINK_ID} target="_blank" rel="noopener noreferrer" href="https://ipfs.io/ipfs/${cid}">${cid}</a>`;
+    const ipfsIoAnchor = `<a id=${IPFS_LINK_ID} target="_blank" rel="noopener noreferrer" href="https://ipfs.io/ipfs/${cid}">ipfs://${cid}</a>`;
     const fileNameSpan = `<span id=${FILENAME_ID}>${file.name}</span>`;
     const mediaTypeSpan = `<span id=${FILETYPE_ID}>${mimeType}</span>`;
     ipfsDisplay.innerHTML = `${ipfsIoAnchor}<br/>(${fileNameSpan}&nbsp;[${mediaTypeSpan}])`;
@@ -268,13 +270,13 @@ function wrapMetadataFor(policyID, innerMetadata) {
 function generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix) {
   var cip0025Metadata = {name: nftName};
 
-  var ipfsDisplayEls = document.querySelector(ipfsDisplayDom);
-  var ipfsCidLink = ipfsDisplayEls.querySelector(`#${IPFS_LINK_ID}`);
+  const ipfsDisplayEls = document.querySelector(ipfsDisplayDom);
+  const ipfsCidLink = ipfsDisplayEls.querySelector(`#${IPFS_LINK_ID}`);
   if (ipfsCidLink) {
-    var ipfsLink = validated(ipfsCidLink.textContent, 'There was an error retrieving IPFS link, did you upload the file correctly?');
+    const ipfsLink = validated(ipfsCidLink.textContent, 'There was an error retrieving IPFS link, did you upload the file correctly?').match(METADATA_SPLITTER);
 
-    var ipfsMediaTypeDom = ipfsDisplayEls.querySelector(`#${FILETYPE_ID}`);
-    var mediaType = validated(ipfsMediaTypeDom.textContent, 'Could not retrieve mime-type, unknown file uploaded which will cause rendering issues');
+    const ipfsMediaTypeDom = ipfsDisplayEls.querySelector(`#${FILETYPE_ID}`);
+    const mediaType = validated(ipfsMediaTypeDom.textContent, 'Could not retrieve mime-type, unknown file uploaded which will cause rendering issues');
 
     if (mediaType.startsWith(IMAGE_MIME_PREFIX)) {
       cip0025Metadata['image'] = ipfsLink;
@@ -294,8 +296,17 @@ function generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix) {
     const traitKey = trait.value;
     const traitValue = document.getElementById(trait.id.replace(KEY_SUFFIX, VALUE_SUFFIX)).value;
     if (traitKey) {
-      validate(traitValue.length <= NftPolicy.NftPolicy.MAX_METADATA_LEN, `Metadata value for ${traitKey} is greater than Cardano will allow (max of ${NftPolicy.NftPolicy.MAX_METADATA_LEN} chars)`);
-      cip0025Metadata[traitKey] = traitValue;
+      if (traitValue.length > NftPolicy.NftPolicy.MAX_METADATA_LEN) {
+        if (traitKey !== IMAGE_FIELD) {
+          validate(
+            confirm(`Metadata value for '${traitKey}' is greater than Cardano will allow (max of ${NftPolicy.NftPolicy.MAX_METADATA_LEN} chars), would you like to split it into an array automatically?`),
+            'Aborting due to lengthy metadata'
+          );
+        }
+        cip0025Metadata[traitKey] = traitValue.match(METADATA_SPLITTER);
+      } else {
+        cip0025Metadata[traitKey] = traitValue;
+      }
     } else if (traitValue) {
       throw `Missing name for trait '${traitValue}'`;
     }
