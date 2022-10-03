@@ -1,0 +1,35 @@
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.2.1/dist/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/cardano-dapp-js@1.0.5/dist/cardano-wallet-picker.css" rel="stylesheet" integrity="sha384-jeqm08LTVeNbS97UWy4EXaCioonM70aAFwSpoQITuPKgc53EI0+XfxoG+0hwMLqj" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" rel="stylesheet" integrity="sha384-1txFwJFikBxvmOF4oqBQdSBJQzEUrMDB2MMmedDaFGsjXYStJKO7JkwyAWPDXlkk" crossorigin="anonymous">
+
+    <script type="text/javascript" src="nft-toolkit.js"></script>
+    <link rel="stylesheet" href="voting.css" />
+  </head>
+
+  <body>
+    <div id="wallet-container" class="container"></div>
+
+    <div id="vote-container" class="container">
+        <a id="vote-now" class="bordered text-reset text-decoration-none padded noselect pointer">VOTE NOW!</a>
+    </div>
+  </body>
+
+  <script type="module">
+    NftToolkit.then(NftToolkit => {
+      NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container');
+
+      const blockfrostKey = NftToolkit.Secrets.BLOCKFROST_PROJ;
+      const policyID = "56fd93ef8ebe4c73645acadaf477716ce97339050244644cef325741";
+
+      document.getElementById('vote-now').addEventListener('click', async e => {
+        e && e.preventDefault();
+        await NftToolkit.Voting.mintBallot(blockfrostKey, policyID);
+      })
+    })
+  </script>
+
+</html>

@@ -9,5 +9,6 @@ export * as NftCreator from "./pages/nft-creator.js";
 export * as SniperBot from "./pages/sniper-bot.js";
 export * as Sweep from "./pages/sweep.js";
 export * as VendingMachine from "./pages/vending-machine.js";
+export * as Voting from "./pages/voting.js";
 
 export {NftPolicy} from "./nft-toolkit/nft-policy.js";
