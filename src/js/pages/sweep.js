@@ -105,7 +105,7 @@ async function executePayToTxn(lucid, txn) {
         throw `Redeemed UTxO lacking hash or schema type for calculating redemption ${redeemedUtxo}`;
       }
 
-      const datum = fromHex(Marketplaces.datumFor(redeemedUtxo.utxo.datumSchema, txn.id, txn.payees))
+      const datum = fromHex(Marketplaces.datumFor(redeemedUtxo.utxo, txn.id, txn.payees))
       const computedHash = datumToHash(datum);
       if (redeemedUtxo.utxo.datumHash !== computedHash) {
         throw `Expected ${redeemedUtxo.utxo.datumHash}, found ${computedHash}`;

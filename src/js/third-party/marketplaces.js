@@ -2,6 +2,7 @@ import {Constr, Data, Utils} from "lucid-cardano";
 
 const MarketType = {
   EPOCHART: 'epochart_schema',
+  JPGSTORE: 'jpgstore_schema',
 }
 
 function epochArtSchema(id, payees) {
@@ -30,11 +31,13 @@ function epochArtSchema(id, payees) {
   return Data.to(new Construct(0, payments));
 }
 
-export function datumFor(datumSchema, id, payees) {
-  switch (datumSchema) {
+export function datumFor(utxo, id, payees) {
+  switch (utxo.datumSchema) {
     case MarketType.EPOCHART:
       return epochArtSchema(id, payees);
+    case MarketType.JPGSTORE:
+      return utxo.datum;
     default:
-      throw `Unexpected datum schema ${datumSchema} encountered for ${id}`;
+      throw `Unexpected datum schema ${utxo.datumSchema} encountered for ${id}`;
   }
 }
