@@ -374,8 +374,8 @@ class VendingMachine {
         if (this.nftPolicy.slot) {
           txBuilder = txBuilder.validTo(this.lucid.utils.slotToUnixTime(this.nftPolicy.slot));
         }
-        var txComplete = await txBuilder.complete({changeAddress: changeAddress});
 
+        const txComplete = await txBuilder.complete({changeAddress: changeAddress, coinSelection: false});
         if (txComplete.txComplete.body().mint()) {
           txComplete = txComplete.signWithPrivateKey(this.nftPolicy.key.to_bech32());
         }
