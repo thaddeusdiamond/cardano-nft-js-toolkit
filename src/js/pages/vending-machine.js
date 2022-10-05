@@ -320,16 +320,16 @@ class VendingMachine {
 
     validate(this.isValidated, 'State error: validate your vending machine before vending');
 
-    this.log(`${this.metadata.length} mints remaining.  Looking for new UTXOs in vending machine...`);
-    var utxos = await this.lucid.utxosAtWithUnit(this.vendingMachineAddr, VendingMachine.LOVELACE);
-    for (var utxo of utxos) {
-      var utxoWithIx = `${utxo.txHash}#${utxo.outputIndex}`;
-      if (this.exclusions.includes(utxoWithIx)) {
-        continue;
-      }
+    try {
+      this.log(`${this.metadata.length} mints remaining.  Looking for new UTXOs in vending machine...`);
+      var utxos = await this.lucid.utxosAtWithUnit(this.vendingMachineAddr, VendingMachine.LOVELACE);
+      for (var utxo of utxos) {
+        var utxoWithIx = `${utxo.txHash}#${utxo.outputIndex}`;
+        if (this.exclusions.includes(utxoWithIx)) {
+          continue;
+        }
 
-      this.exclusions.push(utxoWithIx);
-      try {
+        this.exclusions.push(utxoWithIx);
         var balance = utxo.assets[VendingMachine.LOVELACE];
         var numMintsRequested = this.mintPrice ? Number(balance / this.mintPrice) : this.singleVendMax;
         var numMints = Math.min(this.singleVendMax, this.metadata.length, numMintsRequested);
@@ -385,10 +385,10 @@ class VendingMachine {
         const txHash = await txSigned.submit();
         this.log(`Signed transaction submitted as ${txHash}`);
         shortToast(`Successfully processed a new customer order for ${numMints} NFTs!`);
-      } catch (err) {
-        this.log(`AN ERROR OCCURRED -> DEBUG MANUALLY: ${err}`);
-        shortToast(err);
       }
+    } catch (err) {
+      this.log(`AN ERROR OCCURRED -> DEBUG MANUALLY: ${err}`);
+      shortToast(err);
     }
 
     setTimeout((_ => this.vend()).bind(this), VendingMachine.VENDING_INTERVAL);
