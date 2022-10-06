@@ -9,9 +9,6 @@ import {shortToast} from '../third-party/toastify-utils.js';
 import {validate, validated} from '../nft-toolkit/utils.js';
 
 const SINGLE_NFT = 1n;
-const POLLS_OPEN = 1664462000000;
-const POLLS_CLOSE = 1666242000000; // 10/20/22 00:00:00
-const REFERENCE_POLICY_ID = '56fd93ef8ebe4c73645acadaf477716ce97339050244644cef325741';
 const TEN_MINS = 600000;
 
 function getBallotSourceCodeStr(referencePolicyId, pollsClose) {
@@ -28,9 +25,9 @@ function getBallotSourceCodeStr(referencePolicyId, pollsClose) {
 
     func tx_outputs_contain(voting_asset: AssetClass, outputs: []TxOutput) -> Bool {
       outputs.any((tx_out: TxOutput) -> Bool {
-        print("Searching...");
-        print(voting_asset.serialize().show());
-        print(tx_out.value.serialize().show());
+        //print("Searching...");
+        //print(voting_asset.serialize().show());
+        //print(tx_out.value.serialize().show());
         tx_out.value.contains(Value::new(voting_asset, SINGLE_NFT))
       })
     }
@@ -82,32 +79,34 @@ function getLucidScript(compiledCode) {
   }
 }
 
-export async function mintBallot(blockfrostKey, policyID) {
+export async function mintBallot(blockfrostKey, policyId, pollsClose) {
   try {
-    const heliosSourceCode = getBallotSourceCodeStr(REFERENCE_POLICY_ID, POLLS_CLOSE);
+    const heliosSourceCode = getBallotSourceCodeStr(policyId, pollsClose);
     const heliosCompiledCode = getCompiledCode(heliosSourceCode);
     const heliosMintingPolicy = getLucidScript(heliosCompiledCode);
 
     const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
-    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before sweeping using "Connect Wallet" button');
+    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before voting using "Connect Wallet" button');
     const wallet = await cardanoDApp.getConnectedWallet();
 
     const lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'Please validate that your wallet is on the correct network');
     lucid.selectWallet(wallet);
     const voter = await lucid.wallet.address();
 
-    // TODO: Get name from the user
-    const assetName = toHex(new TextEncoder().encode('WildTangz 2'));
-
-    const assetId = `${heliosCompiledCode.mintingPolicyHash.hex}${assetName}`;
-    const mintAssets = { [assetId]: SINGLE_NFT };
-    const vendAssets = { lovelace: 2n, [assetId]: SINGLE_NFT };
-    const referenceAssets = { [`${REFERENCE_POLICY_ID}${assetName}`]: 1 };
+    var mintAssets = {};
+    var referenceAssets = {};
+    const mintingPolicyId = heliosCompiledCode.mintingPolicyHash.hex;
+    const assetIds = await getVotingAssets([policyId], [], lucid);
+    for (const assetId in assetIds.assets) {
+      const assetName = assetId.slice(56);
+      mintAssets[`${mintingPolicyId}${assetName}`] = SINGLE_NFT;
+      referenceAssets[`${policyId}${assetName}`] = SINGLE_NFT;
+    }
     const txBuilder = lucid.newTx()
                            .addSigner(voter)
                            .mintAssets(mintAssets, Data.empty())
                            .attachMintingPolicy(heliosMintingPolicy)
-                           .payToAddress(voter, vendAssets)
+                           .payToAddress(voter, mintAssets)
                            .payToAddress(voter, referenceAssets)
                            .validTo(new Date().getTime() + TEN_MINS);
 
@@ -118,4 +117,63 @@ export async function mintBallot(blockfrostKey, policyID) {
   } catch (err) {
     shortToast(JSON.stringify(err));
   }
+}
+
+async function getVotingAssets(votingPolicies, exclusions, lucid) {
+  if (votingPolicies === undefined || votingPolicies === []) {
+    return {};
+  }
+  const votingAssets = {};
+  const utxos = [];
+  for (const utxo of await lucid.wallet.getUtxos()) {
+    var found = false;
+    for (const assetName in utxo.assets) {
+      if (!votingPolicies.includes(assetName.slice(0, 56))) {
+        continue;
+      }
+      if (exclusions.includes(assetName)) {
+        continue;
+      }
+      if (votingAssets[assetName] === undefined) {
+        votingAssets[assetName] = 0n;
+      }
+      votingAssets[assetName] += utxo.assets[assetName];
+      found = true;
+    }
+    if (found) {
+      utxos.push(utxo);
+    }
+  }
+  return { assets: votingAssets, utxos: utxos };
+}
+
+async function walletVotingAssets(blockfrostKey, votingPolicies, exclusions) {
+  var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
+  if (!cardanoDApp.isWalletConnected()) {
+    return {};
+  }
+
+  try {
+    const wallet = await cardanoDApp.getConnectedWallet();
+    const lucidInst = validated(LucidInst.getLucidInstance(blockfrostKey), 'Unable to initialize Lucid, network mismatch detected');
+
+    const lucid = validated(await lucidInst, 'Unable to initialize Lucid, network mismatch detected');
+    lucid.selectWallet(wallet);
+    return await getVotingAssets(votingPolicies, exclusions, lucid);
+  } catch (err) {
+    const msg = (typeof(err) === 'string') ? err : JSON.stringify(err);
+    shortToast(`Voting power retrieval error occurred: ${msg}`);
+    return {};
+  }
+}
+
+export async function votingAssetsAvailable(blockfrostKey, votingPolicies, exclusions) {
+  const votingAssets = await walletVotingAssets(blockfrostKey, votingPolicies, exclusions);
+  if (votingAssets.assets) {
+    const remainingVotingBigInt =
+      Object.values(votingAssets.assets)
+            .reduce((partialSum, a) => partialSum + a, 0n);
+    return Number(remainingVotingBigInt);
+  }
+  return -1;
 }
