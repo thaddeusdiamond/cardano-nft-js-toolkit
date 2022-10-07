@@ -78,18 +78,19 @@
       const pollsClose = 1666242000000; // 10/20/22 00:00:00
       const ballotDomName = 'vote-ballot-choice';
       const voteOutputDom = 'vote-count-output';
+      const ballotPrefix = 'Vote #1 - ';
       const pubKeyHash = '2d2b94c39535a96f74cedf908b704eda9605c7d4e788a0e9f0a133c7';
 
       document.getElementById("vote-ballot-form").addEventListener('submit', e => false);
 
       document.getElementById('vote-now').addEventListener('click', async e => {
         e && e.preventDefault();
-        await NftToolkit.Voting.mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotDomName);
+        await NftToolkit.Voting.mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotDomName, ballotPrefix);
       });
 
       document.getElementById('vote-count').addEventListener('click', async e => {
         e && e.preventDefault();
-        await NftToolkit.Voting.redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom);
+        await NftToolkit.Voting.redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom, ballotPrefix);
       });
 
       window.addEventListener("message", async (event) => {

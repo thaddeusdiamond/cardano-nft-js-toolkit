@@ -24,11 +24,12 @@ function getVoteCounterSourceCode(pubKeyHash) {
   `;
 }
 
-function getBallotSourceCodeStr(referencePolicyId, pollsClose, pubKeyHash) {
+function getBallotSourceCodeStr(referencePolicyId, pollsClose, pubKeyHash, ballotPrefix) {
   return `
     minting voting_ballot
 
     const BALLOT_BOX_PUBKEY: ValidatorHash = ValidatorHash::new(#${pubKeyHash})
+    const BALLOT_NAME_PREFIX: ByteArray = #${ballotPrefix}
     const POLLS_CLOSE: Time = Time::new(${pollsClose})
     const REFERENCE_POLICY_HASH: MintingPolicyHash = MintingPolicyHash::new(#${referencePolicyId})
     const SINGLE_NFT: Int = 1
@@ -61,7 +62,8 @@ function getBallotSourceCodeStr(referencePolicyId, pollsClose, pubKeyHash) {
 
     func assets_were_spent(minted_assets: Value, policy: MintingPolicyHash, outputs: []TxOutput) -> Bool {
       tx_sends_to_self: Bool = minted_assets.get_policy(policy).all((asset_id: ByteArray, amount: Int) -> Bool {
-        voting_asset: AssetClass = AssetClass::new(REFERENCE_POLICY_HASH, asset_id);
+        original_asset_name: ByteArray = asset_id.slice(BALLOT_NAME_PREFIX.length, asset_id.length);
+        voting_asset: AssetClass = AssetClass::new(REFERENCE_POLICY_HASH, original_asset_name);
         tx_outputs_contain(voting_asset, outputs) && amount == SINGLE_NFT
       });
       if (tx_sends_to_self) {
@@ -113,7 +115,7 @@ function getBallotSelection(ballotDomName) {
 }
 
 
-export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotDomName) {
+export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotDomName, ballotPrefix) {
   try {
     const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before voting using "Connect Wallet" button');
@@ -129,7 +131,8 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
     const voteCounter = lucid.utils.validatorToAddress(voteCounterScript);
     const voteCounterPkh = getAddressDetails(voteCounter).paymentCredential.hash;
 
-    const mintingSourceCode = getBallotSourceCodeStr(policyId, pollsClose, voteCounterPkh);
+    const ballotPrefixHex = toHex(new TextEncoder().encode(ballotPrefix));
+    const mintingSourceCode = getBallotSourceCodeStr(policyId, pollsClose, voteCounterPkh, ballotPrefixHex);
     const mintingCompiledCode = getCompiledCode(mintingSourceCode);
     const voteMintingPolicy = getLucidScript(mintingCompiledCode);
 
@@ -139,7 +142,7 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
     const assetIds = await getVotingAssets([policyId], [], lucid);
     for (const assetId in assetIds.assets) {
       const assetName = assetId.slice(56);
-      mintAssets[`${mintingPolicyId}${assetName}`] = SINGLE_NFT;
+      mintAssets[`${mintingPolicyId}${ballotPrefixHex}${assetName}`] = SINGLE_NFT;
       referenceAssets[`${policyId}${assetName}`] = SINGLE_NFT;
     }
 
@@ -224,7 +227,7 @@ export async function votingAssetsAvailable(blockfrostKey, votingPolicies, exclu
   return -1;
 }
 
-export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom) {
+export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom, ballotPrefix) {
   try {
     const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before voting using "Connect Wallet" button');
@@ -240,7 +243,8 @@ export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsCl
     const voteCounter = lucid.utils.validatorToAddress(voteCounterScript);
     const voteCounterPkh = getAddressDetails(voteCounter).paymentCredential.hash;
 
-    const mintingSourceCode = getBallotSourceCodeStr(policyId, pollsClose, voteCounterPkh);
+    const ballotPrefixHex = toHex(new TextEncoder().encode(ballotPrefix));
+    const mintingSourceCode = getBallotSourceCodeStr(policyId, pollsClose, voteCounterPkh, ballotPrefixHex);
     const mintingCompiledCode = getCompiledCode(mintingSourceCode);
     const mintingPolicyId = mintingCompiledCode.mintingPolicyHash.hex;
 
