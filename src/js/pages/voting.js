@@ -122,7 +122,7 @@ function getLucidScript(compiledCode) {
 }
 
 function getBallotSelection(ballotDomName) {
-  return document.querySelector(`input[name=${ballotDomName}]:checked`).value;
+  return document.querySelector(`input[name=${ballotDomName}]:checked`)?.value;
 }
 
 
@@ -147,7 +147,7 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
     const mintingCompiledCode = getCompiledCode(mintingSourceCode);
     const voteMintingPolicy = getLucidScript(mintingCompiledCode);
 
-    const vote = getBallotSelection(ballotDomName);
+    const vote = validated(getBallotSelection(ballotDomName), 'Please select your ballot choice!');
     const voteDatum = {
       inline: Data.to(Data.fromJson({ voter: voter, vote: vote }))
     };
