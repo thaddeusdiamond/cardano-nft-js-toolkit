@@ -66,6 +66,13 @@
       <div id="vote-count-output" class="row padded">
           Vote results will appear here...
       </div>
+
+      <div id="vote-burn-container" class="row padded">
+          <div class="col-12 centered">
+            <h4>Done With Your Ballots? Want to Reclaim Your ADA?</h4>
+            <a id="vote-burn" class="bordered text-reset text-decoration-none padded noselect pointer">BURN YOUR COUNTED VOTES!</a>
+          </div>
+      </div>
     </div>
   </body>
 
@@ -91,6 +98,11 @@
       document.getElementById('vote-count').addEventListener('click', async e => {
         e && e.preventDefault();
         await NftToolkit.Voting.redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom, ballotPrefix);
+      });
+
+      document.getElementById('vote-burn').addEventListener('click', async e => {
+        e && e.preventDefault();
+        await NftToolkit.Voting.burnBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix);
       });
 
       window.addEventListener("message", async (event) => {

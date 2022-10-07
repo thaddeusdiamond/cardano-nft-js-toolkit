@@ -36,6 +36,7 @@ function getBallotSourceCodeStr(referencePolicyId, pollsClose, pubKeyHash, ballo
 
     enum Redeemer {
       Mint
+      Burn
     }
 
     func assets_locked_in_script(tx: Tx, minted_assets: Value) -> Bool {
@@ -85,14 +86,23 @@ function getBallotSourceCodeStr(referencePolicyId, pollsClose, pubKeyHash, ballo
     }
 
     func main(redeemer: Redeemer, ctx: ScriptContext) -> Bool {
+      tx: Tx = ctx.tx;
+      minted_policy: MintingPolicyHash = ctx.get_current_minting_policy_hash();
       redeemer.switch {
-        Mint =>  {
-          tx: Tx = ctx.tx;
-          minted_policy: MintingPolicyHash = ctx.get_current_minting_policy_hash();
-
+        Mint => {
           polls_are_still_open(tx.time_range)
             && assets_were_spent(tx.minted, minted_policy, tx.outputs)
             && assets_locked_in_script(tx, tx.minted)
+        },
+        Burn => {
+          tx.minted.get_policy(minted_policy).all((asset_id: ByteArray, amount: Int) -> Bool {
+            if (amount > 0) {
+              print(asset_id.show() + " asset ID was minted not burned (quantity " + amount.show() + ")");
+              false
+            } else {
+              true
+            }
+          })
         }
       }
     }
@@ -287,6 +297,63 @@ export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsCl
     const txSigned = await txComplete.sign().complete();
     const txHash = await txSigned.submit();
     shortToast(`Successfully counted ballots in ${txHash}`);
+  } catch (err) {
+    shortToast(JSON.stringify(err));
+  }
+}
+
+export async function burnBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix) {
+  try {
+    const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
+    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before voting using "Connect Wallet" button');
+    const wallet = await cardanoDApp.getConnectedWallet();
+
+    const lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'Please validate that your wallet is on the correct network');
+    lucid.selectWallet(wallet);
+    const voter = await lucid.wallet.address();
+
+    const voteCounterSourceCode = getVoteCounterSourceCode(pubKeyHash);
+    const voteCounterCompiledCode = getCompiledCode(voteCounterSourceCode);
+    const voteCounterScript = getLucidScript(voteCounterCompiledCode)
+    const voteCounter = lucid.utils.validatorToAddress(voteCounterScript);
+    const voteCounterPkh = getAddressDetails(voteCounter).paymentCredential.hash;
+
+    const ballotPrefixHex = toHex(new TextEncoder().encode(ballotPrefix));
+    const mintingSourceCode = getBallotSourceCodeStr(policyId, pollsClose, voteCounterPkh, ballotPrefixHex);
+    const mintingCompiledCode = getCompiledCode(mintingSourceCode);
+    const mintingPolicy = getLucidScript(mintingCompiledCode);
+    const mintingPolicyId = mintingCompiledCode.mintingPolicyHash.hex;
+
+    const utxos = await lucid.wallet.getUtxos();
+    const utxosToCollect = [];
+    const mintAssets = {};
+    for (const utxo of utxos) {
+      var foundAsset = false;
+      for (const unit in utxo.assets) {
+        if (unit.startsWith(mintingPolicyId)) {
+          foundAsset = true;
+          if (!(unit in mintAssets)) {
+            mintAssets[unit] = 0n;
+          }
+          mintAssets[unit] -= utxo.assets[unit];
+        }
+      }
+
+      if (foundAsset) {
+        utxosToCollect.push(utxo);
+      }
+    }
+
+    const txBuilder = lucid.newTx()
+                           .addSigner(voter)
+                           .collectFrom(utxosToCollect)
+                           .mintAssets(mintAssets, BURN_REDEEMER)
+                           .attachMintingPolicy(mintingPolicy)
+                           .validTo(new Date().getTime() + TEN_MINS);
+    const txComplete = await txBuilder.complete({ nativeUplc: false });
+    const txSigned = await txComplete.sign().complete();
+    const txHash = await txSigned.submit();
+    shortToast(`Successfully burned your ballots in ${txHash}`);
   } catch (err) {
     shortToast(JSON.stringify(err));
   }
