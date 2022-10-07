@@ -3,11 +3,12 @@ import * as helios from '@hyperionbt/helios';
 import * as CardanoDAppJs from '../third-party/cardano-dapp-js.js';
 import * as LucidInst from '../third-party/lucid-inst.js';
 
-import {Data, toHex} from 'lucid-cardano';
+import {Data, toHex, getAddressDetails} from 'lucid-cardano';
 
 import {shortToast} from '../third-party/toastify-utils.js';
 import {validate, validated} from '../nft-toolkit/utils.js';
 
+const BURN_REDEEMER = 'd87a80';
 const SINGLE_NFT = 1n;
 const TEN_MINS = 600000;
 
@@ -17,29 +18,36 @@ function getVoteCounterSourceCode(pubKeyHash) {
 
     const EXPECTED_SIGNER: PubKeyHash = PubKeyHash::new(#${pubKeyHash})
 
-    func signed_by_expected(signatories: []PubKeyHash) -> Bool {
-      signatories.any((signatory: PubKeyHash) -> Bool {
-        signatory == EXPECTED_SIGNER
-      })
-    }
-
     func main(ctx: ScriptContext) -> Bool {
-      print(ctx.tx.signatories.serialize().show());
-      signed_by_expected(ctx.tx.signatories)
+      ctx.tx.is_signed_by(EXPECTED_SIGNER)
     }
   `;
 }
 
-function getBallotSourceCodeStr(referencePolicyId, pollsClose) {
+function getBallotSourceCodeStr(referencePolicyId, pollsClose, pubKeyHash) {
   return `
     minting voting_ballot
 
+    const BALLOT_BOX_PUBKEY: ValidatorHash = ValidatorHash::new(#${pubKeyHash})
     const POLLS_CLOSE: Time = Time::new(${pollsClose})
     const REFERENCE_POLICY_HASH: MintingPolicyHash = MintingPolicyHash::new(#${referencePolicyId})
     const SINGLE_NFT: Int = 1
 
     enum Redeemer {
       Mint
+    }
+
+    func assets_locked_in_script(tx: Tx, minted_assets: Value) -> Bool {
+      //print(tx.value_sent_to(BALLOT_BOX_PUBKEY).serialize().show());
+      //print(minted_assets.serialize().show());
+      ballots_sent: Value = tx.value_locked_by(BALLOT_BOX_PUBKEY);
+      assets_locked: Bool = ballots_sent.contains(minted_assets);
+      if (assets_locked) {
+        true
+      } else {
+        print("Minted ballots (" + minted_assets.serialize().show() + ") were not correctly locked in the script: " + ballots_sent.serialize().show());
+        false
+      }
     }
 
     func tx_outputs_contain(voting_asset: AssetClass, outputs: []TxOutput) -> Bool {
@@ -59,7 +67,7 @@ function getBallotSourceCodeStr(referencePolicyId, pollsClose) {
       if (tx_sends_to_self) {
         true
       } else {
-        print("The NFTs with voting power for the ballots were never sent-to-self");
+        print("The NFTs with voting power (" + REFERENCE_POLICY_HASH.serialize().show() + ") for the ballots were never sent-to-self");
         false
       }
     }
@@ -80,7 +88,9 @@ function getBallotSourceCodeStr(referencePolicyId, pollsClose) {
           tx: Tx = ctx.tx;
           minted_policy: MintingPolicyHash = ctx.get_current_minting_policy_hash();
 
-          polls_are_still_open(tx.time_range) && assets_were_spent(tx.minted, minted_policy, tx.outputs)
+          polls_are_still_open(tx.time_range)
+            && assets_were_spent(tx.minted, minted_policy, tx.outputs)
+            && assets_locked_in_script(tx, tx.minted)
         }
       }
     }
@@ -117,8 +127,9 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
     const voteCounterCompiledCode = getCompiledCode(voteCounterSourceCode);
     const voteCounterScript = getLucidScript(voteCounterCompiledCode)
     const voteCounter = lucid.utils.validatorToAddress(voteCounterScript);
+    const voteCounterPkh = getAddressDetails(voteCounter).paymentCredential.hash;
 
-    const mintingSourceCode = getBallotSourceCodeStr(policyId, pollsClose);
+    const mintingSourceCode = getBallotSourceCodeStr(policyId, pollsClose, voteCounterPkh);
     const mintingCompiledCode = getCompiledCode(mintingSourceCode);
     const voteMintingPolicy = getLucidScript(mintingCompiledCode);
 
@@ -221,49 +232,53 @@ export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsCl
 
     const lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'Please validate that your wallet is on the correct network');
     lucid.selectWallet(wallet);
-    const voter = await lucid.wallet.address();
+    const oracle = await lucid.wallet.address();
 
     const voteCounterSourceCode = getVoteCounterSourceCode(pubKeyHash);
     const voteCounterCompiledCode = getCompiledCode(voteCounterSourceCode);
     const voteCounterScript = getLucidScript(voteCounterCompiledCode)
     const voteCounter = lucid.utils.validatorToAddress(voteCounterScript);
+    const voteCounterPkh = getAddressDetails(voteCounter).paymentCredential.hash;
 
-    const mintingSourceCode = getBallotSourceCodeStr(policyId, pollsClose);
+    const mintingSourceCode = getBallotSourceCodeStr(policyId, pollsClose, voteCounterPkh);
     const mintingCompiledCode = getCompiledCode(mintingSourceCode);
     const mintingPolicyId = mintingCompiledCode.mintingPolicyHash.hex;
 
-    var votesToCollect = [];
     var voteAssets = {};
-    var voteResults = {};
     const votes = await lucid.utxosAt(voteCounter);
+    const votesToCollect = [];
+    const voterRepayments = {};
     for (const vote of votes) {
-      votesToCollect.push(vote);
-      var totalVotingPower = 0;
+      const voteResult = Data.toJson(Data.from(vote.datum));
       for (const unit in vote.assets) {
-        const quantity = Number(vote.assets[unit]);
-        if (!(unit in voteAssets)) {
-          voteAssets[unit] = 0;
+        if (!unit.startsWith(mintingPolicyId)) {
+          continue;
         }
-        if (unit.startsWith(mintingPolicyId)) {
-          totalVotingPower += quantity;
+        const voteCount = Number(vote.assets[unit]);
+        voteAssets[unit] = {
+          voter: voteResult.voter,
+          vote: voteResult.vote,
+          count: voteCount
         }
-        voteAssets[unit] += quantity;
+        if (!(voteResult.voter in voterRepayments)) {
+          voterRepayments[voteResult.voter] = {}
+        }
+        voterRepayments[voteResult.voter][unit] = voteCount;
       }
 
-      const voteResult = Data.toJson(Data.from(vote.datum));
-      if (!(voteResult.vote in voteResults)) {
-        voteResults[voteResult.vote] = [];
-      }
-      voteResults[voteResult.vote].push({ [voteResult.voter]: totalVotingPower });
+      votesToCollect.push(vote);
     }
 
-    document.getElementById(voteOutputDom).innerHTML = JSON.stringify(voteResults);
+    document.getElementById(voteOutputDom).innerHTML =
+     `<pre style="text-align: start">${JSON.stringify(voteAssets, undefined, 4)}</pre>`;
 
     const txBuilder = lucid.newTx()
-                           .addSigner(voter)
+                           .addSigner(oracle)
                            .collectFrom(votesToCollect, Data.empty())
-                           .attachSpendingValidator(voteCounterScript)
-                           .payToAddress(voter, voteAssets);
+                           .attachSpendingValidator(voteCounterScript);
+    for (const voter in voterRepayments) {
+      txBuilder.payToAddress(voter, voterRepayments[voter]);
+    }
     const txComplete = await txBuilder.complete({ nativeUplc: false });
     const txSigned = await txComplete.sign().complete();
     const txHash = await txSigned.submit();
