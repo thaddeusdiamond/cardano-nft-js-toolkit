@@ -2,8 +2,9 @@ import * as helios from '@hyperionbt/helios';
 
 import * as CardanoDAppJs from '../third-party/cardano-dapp-js.js';
 import * as LucidInst from '../third-party/lucid-inst.js';
+import * as NftPolicy from "../nft-toolkit/nft-policy.js";
 
-import {Data, toHex, getAddressDetails} from 'lucid-cardano';
+import {Data, fromHex, toHex, getAddressDetails} from 'lucid-cardano';
 
 import {shortToast} from '../third-party/toastify-utils.js';
 import {validate, validated} from '../nft-toolkit/utils.js';
@@ -125,7 +126,7 @@ function getBallotSelection(ballotDomName) {
 }
 
 
-export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotDomName, ballotPrefix) {
+export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotDomName, ballotPrefix, ballotMetadata) {
   try {
     const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before voting using "Connect Wallet" button');
@@ -146,25 +147,32 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
     const mintingCompiledCode = getCompiledCode(mintingSourceCode);
     const voteMintingPolicy = getLucidScript(mintingCompiledCode);
 
-    var mintAssets = {};
-    var referenceAssets = {};
-    const mintingPolicyId = mintingCompiledCode.mintingPolicyHash.hex;
-    const assetIds = await getVotingAssets([policyId], [], lucid);
-    for (const assetId in assetIds.assets) {
-      const assetName = assetId.slice(56);
-      mintAssets[`${mintingPolicyId}${ballotPrefixHex}${assetName}`] = SINGLE_NFT;
-      referenceAssets[`${policyId}${assetName}`] = SINGLE_NFT;
-    }
-
     const vote = getBallotSelection(ballotDomName);
     const voteDatum = {
       inline: Data.to(Data.fromJson({ voter: voter, vote: vote }))
     };
 
+    var mintAssets = {};
+    var referenceAssets = {};
+    const mintingPolicyId = mintingCompiledCode.mintingPolicyHash.hex;
+    const assetIds = await getVotingAssets([policyId], [], lucid);
+    const mintingMetadata = { [mintingPolicyId]: {}, version: NftPolicy.CIP0025_VERSION }
+    for (const assetId in assetIds.assets) {
+      const assetName = assetId.slice(56);
+      const ballotNameHex = `${ballotPrefixHex}${assetName}`;
+      const ballotName = new TextDecoder().decode(fromHex(ballotNameHex));
+      mintAssets[`${mintingPolicyId}${ballotNameHex}`] = SINGLE_NFT;
+      referenceAssets[`${policyId}${assetName}`] = SINGLE_NFT;
+      mintingMetadata[mintingPolicyId][ballotName] = Object.assign({}, ballotMetadata);
+      mintingMetadata[mintingPolicyId][ballotName].name = ballotName;
+      mintingMetadata[mintingPolicyId][ballotName].vote = vote;
+    }
+
     const txBuilder = lucid.newTx()
                            .addSigner(voter)
                            .mintAssets(mintAssets, Data.empty())
                            .attachMintingPolicy(voteMintingPolicy)
+                           .attachMetadata(NftPolicy.METADATA_KEY, mintingMetadata)
                            .payToContract(voteCounter, voteDatum, mintAssets)
                            .payToAddress(voter, referenceAssets)
                            .validTo(new Date().getTime() + TEN_MINS);

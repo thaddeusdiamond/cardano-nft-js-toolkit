@@ -12,7 +12,6 @@ import {shortToast, longToast} from "../third-party/toastify-utils.js";
 import {validate, validated, createTextInput, createCheckboxInput} from "../nft-toolkit/utils.js";
 import {RebateCalculator} from "../nft-toolkit/rebate-calculator.js";
 
-const CIP0025_VERSION = '1.0';
 const FILENAME_ID = 'local-file-name';
 const FILETYPE_ID = 'local-file-mimetype';
 const IMAGE_FIELD = 'image';
@@ -264,7 +263,7 @@ function getTextEncoder() {
 }
 
 function wrapMetadataFor(policyID, innerMetadata) {
-  return { [policyID]: innerMetadata, version: CIP0025_VERSION };
+  return { [policyID]: innerMetadata, version: NftPolicy.CIP0025_VERSION };
 }
 
 function generateCip0025MetadataFor(nftName, ipfsDisplayDom, traitsPrefix) {

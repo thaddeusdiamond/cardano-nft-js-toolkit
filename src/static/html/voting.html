@@ -87,12 +87,21 @@
       const voteOutputDom = 'vote-count-output';
       const ballotPrefix = 'Vote #1 - ';
       const pubKeyHash = '2d2b94c39535a96f74cedf908b704eda9605c7d4e788a0e9f0a133c7';
+      const ballotMetadata = {
+        "image": "ipfs://",
+        "mediaType": "image/png",
+        "description": [
+          "Commemorative NFT for on-chain vote ",
+          "(Metadata for convenience, final votes recorded using datums)"
+        ],
+        "project": "Sample Ballot - NFT Project"
+      }
 
       document.getElementById("vote-ballot-form").addEventListener('submit', e => false);
 
       document.getElementById('vote-now').addEventListener('click', async e => {
         e && e.preventDefault();
-        await NftToolkit.Voting.mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotDomName, ballotPrefix);
+        await NftToolkit.Voting.mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotDomName, ballotPrefix, ballotMetadata);
       });
 
       document.getElementById('vote-count').addEventListener('click', async e => {

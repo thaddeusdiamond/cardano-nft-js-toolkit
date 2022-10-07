@@ -5,6 +5,7 @@ import * as LucidInst from "../third-party/lucid-inst.js";
 import {validate, validated} from "../nft-toolkit/utils.js";
 
 export const METADATA_KEY = '721';
+export const CIP0025_VERSION = '1.0';
 
 const INPUT_TYPE = 'INPUT';
 const SPAN_TYPE = 'SPAN';
