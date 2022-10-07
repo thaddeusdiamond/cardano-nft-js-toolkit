@@ -10,8 +10,12 @@ import {shortToast} from '../third-party/toastify-utils.js';
 import {validate, validated} from '../nft-toolkit/utils.js';
 
 const BURN_REDEEMER = 'd87a80';
+const MAX_NFTS_TO_MINT = 9;
+const MAX_ATTEMPTS = 12;
+const OPTIMIZE_HELIOS = true;
 const SINGLE_NFT = 1n;
 const TEN_MINS = 600000;
+const TXN_WAIT_TIMEOUT = 15000;
 
 function getVoteCounterSourceCode(pubKeyHash) {
   return `
@@ -111,7 +115,7 @@ function getBallotSourceCodeStr(referencePolicyId, pollsClose, pubKeyHash, ballo
 }
 
 function getCompiledCode(mintingSourceCode) {
-  return helios.Program.new(mintingSourceCode).compile();
+  return helios.Program.new(mintingSourceCode).compile(OPTIMIZE_HELIOS);
 }
 
 function getLucidScript(compiledCode) {
@@ -123,6 +127,22 @@ function getLucidScript(compiledCode) {
 
 function getBallotSelection(ballotDomName) {
   return document.querySelector(`input[name=${ballotDomName}]:checked`)?.value;
+}
+
+async function waitForTxn(lucid, blockfrostKey, txHash) {
+  for (var attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const result = await fetch(`${lucid.provider.data.url}/txs/${txHash}`, {
+      headers: { project_id: blockfrostKey }
+    }).then(res => res.json());
+    if (result && !result.error) {
+      return;
+    }
+
+    if (attempt < (MAX_ATTEMPTS - 1)) {
+      await new Promise(resolve => setTimeout(resolve, TXN_WAIT_TIMEOUT));
+    }
+  }
+  throw `Could not retrieve voting txn after ${MAX_ATTEMPTS} attempts`;
 }
 
 
@@ -146,41 +166,61 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
     const mintingSourceCode = getBallotSourceCodeStr(policyId, pollsClose, voteCounterPkh, ballotPrefixHex);
     const mintingCompiledCode = getCompiledCode(mintingSourceCode);
     const voteMintingPolicy = getLucidScript(mintingCompiledCode);
+    const voteMintingPolicyId = mintingCompiledCode.mintingPolicyHash.hex;
 
     const vote = validated(getBallotSelection(ballotDomName), 'Please select your ballot choice!');
     const voteDatum = {
       inline: Data.to(Data.fromJson({ voter: voter, vote: vote }))
     };
 
-    var mintAssets = {};
-    var referenceAssets = {};
-    const mintingPolicyId = mintingCompiledCode.mintingPolicyHash.hex;
-    const assetIds = await getVotingAssets([policyId], [], lucid);
-    const mintingMetadata = { [mintingPolicyId]: {}, version: NftPolicy.CIP0025_VERSION }
-    for (const assetId in assetIds.assets) {
-      const assetName = assetId.slice(56);
-      const ballotNameHex = `${ballotPrefixHex}${assetName}`;
-      const ballotName = new TextDecoder().decode(fromHex(ballotNameHex));
-      mintAssets[`${mintingPolicyId}${ballotNameHex}`] = SINGLE_NFT;
-      referenceAssets[`${policyId}${assetName}`] = SINGLE_NFT;
-      mintingMetadata[mintingPolicyId][ballotName] = Object.assign({}, ballotMetadata);
-      mintingMetadata[mintingPolicyId][ballotName].name = ballotName;
-      mintingMetadata[mintingPolicyId][ballotName].vote = vote;
+    const votingAssets = await getVotingAssets([policyId], [], lucid);
+    const assetIds = Object.keys(votingAssets.assets);
+    var assetIdsChunked = [];
+    for (var i = 0; i < assetIds.length; i += MAX_NFTS_TO_MINT) {
+      assetIdsChunked.push(assetIds.slice(i, i + MAX_NFTS_TO_MINT));
+    }
+    if (assetIdsChunked.length > 1) {
+      validate(
+        confirm(`We will have to split your votes into ${assetIdsChunked.length} different transactions due to blockchain size limits, should we proceed?`),
+        "Did not agree to submit multiple voting transactions"
+      );
     }
 
-    const txBuilder = lucid.newTx()
-                           .addSigner(voter)
-                           .mintAssets(mintAssets, Data.empty())
-                           .attachMintingPolicy(voteMintingPolicy)
-                           .attachMetadata(NftPolicy.METADATA_KEY, mintingMetadata)
-                           .payToContract(voteCounter, voteDatum, mintAssets)
-                           .payToAddress(voter, referenceAssets)
-                           .validTo(new Date().getTime() + TEN_MINS);
+    for (var i = 0; i < assetIdsChunked.length; i++) {
+      var mintAssets = {};
+      var referenceAssets = {};
+      var mintingMetadata = { [voteMintingPolicyId]: {}, version: NftPolicy.CIP0025_VERSION }
+      for (const assetId of assetIdsChunked[i]) {
+        const assetName = assetId.slice(56);
+        const ballotNameHex = `${ballotPrefixHex}${assetName}`;
+        const ballotName = new TextDecoder().decode(fromHex(ballotNameHex));
+        mintAssets[`${voteMintingPolicyId}${ballotNameHex}`] = SINGLE_NFT;
+        referenceAssets[`${policyId}${assetName}`] = SINGLE_NFT;
+        mintingMetadata[voteMintingPolicyId][ballotName] = Object.assign({}, ballotMetadata);
+        mintingMetadata[voteMintingPolicyId][ballotName].name = ballotName;
+        mintingMetadata[voteMintingPolicyId][ballotName].vote = vote;
+      }
 
-    const txComplete = await txBuilder.complete({ nativeUplc: false });
-    const txSigned = await txComplete.sign().complete();
-    const txHash = await txSigned.submit();
-    shortToast(`Successfully voted in Tx ${txHash}`);
+      const txBuilder = lucid.newTx()
+                             .addSigner(voter)
+                             .mintAssets(mintAssets, Data.empty())
+                             .attachMintingPolicy(voteMintingPolicy)
+                             .attachMetadata(NftPolicy.METADATA_KEY, mintingMetadata)
+                             .payToContract(voteCounter, voteDatum, mintAssets)
+                             .payToAddress(voter, referenceAssets)
+                             .validTo(new Date().getTime() + TEN_MINS);
+
+      const txComplete = await txBuilder.complete({ nativeUplc: false });
+      const txSigned = await txComplete.sign().complete();
+      const txHash = await txSigned.submit();
+      shortToast(`[${i + 1}/${assetIdsChunked.length}] Successfully voted in Tx ${txHash}`);
+      if (i < (assetIdsChunked.length - 1)) {
+        shortToast('Waiting for prior transaction to finish, please wait for pop-ups to complete your vote!');
+        await waitForTxn(lucid, blockfrostKey, txHash);
+      } else {
+        shortToast('Your vote(s) have been successfully recorded!');
+      }
+    }
   } catch (err) {
     shortToast(JSON.stringify(err));
   }
@@ -335,10 +375,18 @@ export async function burnBallots(blockfrostKey, pubKeyHash, policyId, pollsClos
     const utxos = await lucid.wallet.getUtxos();
     const utxosToCollect = [];
     const mintAssets = {};
+    var hasAlerted = false;
     for (const utxo of utxos) {
       var foundAsset = false;
       for (const unit in utxo.assets) {
         if (unit.startsWith(mintingPolicyId)) {
+          if (Object.keys(mintAssets).length >= MAX_NFTS_TO_MINT) {
+            if (!hasAlerted) {
+              alert(`Can only burn ${MAX_NFTS_TO_MINT} ballots to burn at a time.  Start with that, then click this button again.`);
+              hasAlerted = true;
+            }
+            break;
+          }
           foundAsset = true;
           if (!(unit in mintAssets)) {
             mintAssets[unit] = 0n;
