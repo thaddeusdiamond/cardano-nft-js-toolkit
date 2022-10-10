@@ -328,7 +328,7 @@ class VendingMachine {
 
     try {
       this.log(`${this.metadata.length} mints remaining.  Looking for new UTXOs in vending machine...`);
-      const utxos = await this.lucid.utxosAtWithUnit(this.vendingMachineAddr, VendingMachine.LOVELACE);
+      const utxos = await this.lucid.utxosAt(this.vendingMachineAddr);
       this.log(`Found UTxOs: ${VendingMachine.#bigIntStringify(utxos)}`);
       for (const utxo of utxos) {
         const utxoWithIx = `${utxo.txHash}#${utxo.outputIndex}`;
