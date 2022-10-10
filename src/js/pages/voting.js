@@ -221,9 +221,11 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
         shortToast('Your vote(s) have been successfully recorded!');
       }
     }
+    return true;
   } catch (err) {
     shortToast(JSON.stringify(err));
   }
+  return false;
 }
 
 async function getVotingAssets(votingPolicies, exclusions, lucid) {
