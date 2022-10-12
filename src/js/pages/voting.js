@@ -287,7 +287,7 @@ export async function votingAssetsAvailable(blockfrostKey, votingPolicies, exclu
   return -1;
 }
 
-export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom, ballotPrefix) {
+export async function countBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom, ballotPrefix) {
   try {
     const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before voting using "Connect Wallet" button');
@@ -310,8 +310,6 @@ export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsCl
 
     var voteAssets = {};
     const votes = await lucid.utxosAt(voteCounter);
-    const votesToCollect = [];
-    const voterRepayments = {};
     for (const vote of votes) {
       const voteResult = Data.toJson(Data.from(vote.datum));
       for (const unit in vote.assets) {
@@ -324,17 +322,61 @@ export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsCl
           vote: voteResult.vote,
           count: voteCount
         }
+      }
+    }
+
+    const votePrinted = JSON.stringify(voteAssets, undefined, 4);
+    document.getElementById(voteOutputDom).innerHTML =
+     `<pre style="text-align: start">${JSON.stringify(voteAssets, undefined, 4)}</pre>`;
+    return votePrinted;
+  } catch (err) {
+    shortToast(JSON.stringify(err));
+  }
+}
+
+export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom, ballotPrefix) {
+  try {
+    const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
+    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before voting using "Connect Wallet" button');
+    const wallet = await cardanoDApp.getConnectedWallet();
+
+    const lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'Please validate that your wallet is on the correct network');
+    lucid.selectWallet(wallet);
+    const oracle = await lucid.wallet.address();
+
+    const voteCounterSourceCode = getVoteCounterSourceCode(pubKeyHash);
+    const voteCounterCompiledCode = getCompiledCode(voteCounterSourceCode);
+    const voteCounterScript = getLucidScript(voteCounterCompiledCode)
+    const voteCounter = lucid.utils.validatorToAddress(voteCounterScript);
+    const voteCounterPkh = getAddressDetails(voteCounter).paymentCredential.hash;
+
+    const ballotPrefixHex = toHex(new TextEncoder().encode(ballotPrefix));
+    const mintingSourceCode = getBallotSourceCodeStr(policyId, pollsClose, voteCounterPkh, ballotPrefixHex);
+    const mintingCompiledCode = getCompiledCode(mintingSourceCode);
+    const mintingPolicyId = mintingCompiledCode.mintingPolicyHash.hex;
+
+    var voterRepayments = {};
+    const votesToCollect = [];
+    const votes = await lucid.utxosAt(voteCounter);
+    for (const vote of votes) {
+      const voteResult = Data.toJson(Data.from(vote.datum));
+      var hasVote = false;
+      for (const unit in vote.assets) {
+        if (!unit.startsWith(mintingPolicyId)) {
+          continue;
+        }
+        hasVote = true;
+        const voteCount = Number(vote.assets[unit]);
         if (!(voteResult.voter in voterRepayments)) {
           voterRepayments[voteResult.voter] = {}
         }
         voterRepayments[voteResult.voter][unit] = voteCount;
       }
 
-      votesToCollect.push(vote);
+      if (hasVote) {
+        votesToCollect.push(vote);
+      }
     }
-
-    document.getElementById(voteOutputDom).innerHTML =
-     `<pre style="text-align: start">${JSON.stringify(voteAssets, undefined, 4)}</pre>`;
 
     const txBuilder = lucid.newTx()
                            .addSigner(oracle)

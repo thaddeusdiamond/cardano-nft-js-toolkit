@@ -52,14 +52,15 @@
 
       <div id="vote-container" class="row padded">
           <div class="col-12 centered">
-            <a id="vote-now" class="bordered text-reset text-decoration-none padded noselect pointer">VOTE NOW!</a>
+            <input id="vote-now" type="submit" value="VOTE NOW!" />
           </div>
       </div>
 
       <div id="vote-count-container" class="row padded">
           <div class="col-12 centered">
             <h4>Administrative Use Only</h4>
-            <a id="vote-count" class="bordered text-reset text-decoration-none padded noselect pointer">COUNT VOTES!</a>
+            <input id="vote-count" type="submit" value="COUNT VOTES!" />
+            <input id="vote-redeemer" type="submit" value="REDEEM BALLOTS!" disabled />
           </div>
       </div>
 
@@ -70,7 +71,7 @@
       <div id="vote-burn-container" class="row padded">
           <div class="col-12 centered">
             <h4>Done With Your Ballots? Want to Reclaim Your ADA?</h4>
-            <a id="vote-burn" class="bordered text-reset text-decoration-none padded noselect pointer">BURN YOUR COUNTED VOTES!</a>
+            <input id="vote-burn" type="submit" value="BURN YOUR COUNTED VOTES!" />
           </div>
       </div>
     </div>
@@ -106,7 +107,16 @@
 
       document.getElementById('vote-count').addEventListener('click', async e => {
         e && e.preventDefault();
-        await NftToolkit.Voting.redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom, ballotPrefix);
+        const ballots = await NftToolkit.Voting.countBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom, ballotPrefix);
+        if (ballots) {
+          window.open(`data:application/txt,${encodeURIComponent(ballots)}`);
+          document.getElementById('vote-redeemer').disabled = false;
+        }
+      });
+
+      document.getElementById('vote-redeemer').addEventListener('click', async e => {
+        e && e.preventDefault();
+        const ballots = await NftToolkit.Voting.redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom, ballotPrefix);
       });
 
       document.getElementById('vote-burn').addEventListener('click', async e => {
