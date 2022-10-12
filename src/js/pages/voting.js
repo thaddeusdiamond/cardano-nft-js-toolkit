@@ -10,7 +10,7 @@ import {shortToast} from '../third-party/toastify-utils.js';
 import {validate, validated} from '../nft-toolkit/utils.js';
 
 const BURN_REDEEMER = 'd87a80';
-const MAX_NFTS_TO_MINT = 9;
+const MAX_NFTS_TO_MINT = 20;
 const MAX_ATTEMPTS = 12;
 const OPTIMIZE_HELIOS = true;
 const SINGLE_NFT = 1n;
@@ -37,7 +37,6 @@ function getBallotSourceCodeStr(referencePolicyId, pollsClose, pubKeyHash, ballo
     const BALLOT_NAME_PREFIX: ByteArray = #${ballotPrefix}
     const POLLS_CLOSE: Time = Time::new(${pollsClose})
     const REFERENCE_POLICY_HASH: MintingPolicyHash = MintingPolicyHash::new(#${referencePolicyId})
-    const SINGLE_NFT: Int = 1
 
     enum Redeemer {
       Mint
@@ -57,21 +56,15 @@ function getBallotSourceCodeStr(referencePolicyId, pollsClose, pubKeyHash, ballo
       }
     }
 
-    func tx_outputs_contain(voting_asset: AssetClass, outputs: []TxOutput) -> Bool {
-      outputs.any((tx_out: TxOutput) -> Bool {
-        //print("Searching...");
-        //print(voting_asset.serialize().show());
-        //print(tx_out.value.serialize().show());
-        tx_out.value.contains(Value::new(voting_asset, SINGLE_NFT))
-      })
-    }
-
-    func assets_were_spent(minted_assets: Value, policy: MintingPolicyHash, outputs: []TxOutput) -> Bool {
-      tx_sends_to_self: Bool = minted_assets.get_policy(policy).all((asset_id: ByteArray, amount: Int) -> Bool {
-        original_asset_name: ByteArray = asset_id.slice(BALLOT_NAME_PREFIX.length, asset_id.length);
-        voting_asset: AssetClass = AssetClass::new(REFERENCE_POLICY_HASH, original_asset_name);
-        tx_outputs_contain(voting_asset, outputs) && amount == SINGLE_NFT
+    func assets_were_spent(minted: Value, policy: MintingPolicyHash, outputs: []TxOutput) -> Bool {
+      minted_assets: Map[ByteArray]Int = minted.get_policy(policy);
+      reference_assets_names: Map[ByteArray]Int = minted_assets.map_keys((asset_id: ByteArray) -> ByteArray {
+        asset_id.slice(BALLOT_NAME_PREFIX.length, asset_id.length)
       });
+      reference_assets: Map[MintingPolicyHash]Map[ByteArray]Int = Map[MintingPolicyHash]Map[ByteArray]Int {
+        REFERENCE_POLICY_HASH: reference_assets_names
+      };
+      tx_sends_to_self: Bool = outputs.head.value.contains(Value::from_map(reference_assets));
       if (tx_sends_to_self) {
         true
       } else {
@@ -206,8 +199,8 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
                              .mintAssets(mintAssets, Data.empty())
                              .attachMintingPolicy(voteMintingPolicy)
                              .attachMetadata(NftPolicy.METADATA_KEY, mintingMetadata)
-                             .payToContract(voteCounter, voteDatum, mintAssets)
                              .payToAddress(voter, referenceAssets)
+                             .payToContract(voteCounter, voteDatum, mintAssets)
                              .validTo(new Date().getTime() + TEN_MINS);
 
       const txComplete = await txBuilder.complete({ nativeUplc: false });

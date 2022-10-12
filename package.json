@@ -11,7 +11,7 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "@hyperionbt/helios": "0.6.5",
+    "@hyperionbt/helios": "0.7.1",
     "buffer": "^6.0.3",
     "cardano-dapp-js": "^1.0.5",
     "copy-webpack-plugin": "^11.0.0",
