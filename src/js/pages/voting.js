@@ -4,12 +4,15 @@ import * as CardanoDAppJs from '../third-party/cardano-dapp-js.js';
 import * as LucidInst from '../third-party/lucid-inst.js';
 import * as NftPolicy from "../nft-toolkit/nft-policy.js";
 
+import {RebateCalculator} from "../nft-toolkit/rebate-calculator.js";
+
 import {Data, fromHex, toHex, getAddressDetails} from 'lucid-cardano';
 
 import {shortToast} from '../third-party/toastify-utils.js';
 import {validate, validated} from '../nft-toolkit/utils.js';
 
 const BURN_REDEEMER = 'd87a80';
+const LOVELACE = 'lovelace';
 const MAX_NFTS_TO_MINT = 20;
 const MAX_ATTEMPTS = 12;
 const OPTIMIZE_HELIOS = true;
@@ -181,18 +184,24 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
 
     for (var i = 0; i < assetIdsChunked.length; i++) {
       var mintAssets = {};
+      var lockedAssets = {};
       var referenceAssets = {};
+      var ballotNameChars = 0;
       var mintingMetadata = { [voteMintingPolicyId]: {}, version: NftPolicy.CIP0025_VERSION }
       for (const assetId of assetIdsChunked[i]) {
         const assetName = assetId.slice(56);
         const ballotNameHex = `${ballotPrefixHex}${assetName}`;
         const ballotName = new TextDecoder().decode(fromHex(ballotNameHex));
-        mintAssets[`${voteMintingPolicyId}${ballotNameHex}`] = SINGLE_NFT;
+        const ballotId = `${voteMintingPolicyId}${ballotNameHex}`;
+        mintAssets[ballotId] = SINGLE_NFT;
+        lockedAssets[ballotId] = SINGLE_NFT;
+        ballotNameChars += ballotName.length;
         referenceAssets[`${policyId}${assetName}`] = SINGLE_NFT;
         mintingMetadata[voteMintingPolicyId][ballotName] = Object.assign({}, ballotMetadata);
         mintingMetadata[voteMintingPolicyId][ballotName].name = ballotName;
         mintingMetadata[voteMintingPolicyId][ballotName].vote = vote;
       }
+      lockedAssets[LOVELACE] = RebateCalculator.calculateRebate(1, assetIdsChunked[i].length, ballotNameChars);
 
       const txBuilder = lucid.newTx()
                              .addSigner(voter)
@@ -200,7 +209,7 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
                              .attachMintingPolicy(voteMintingPolicy)
                              .attachMetadata(NftPolicy.METADATA_KEY, mintingMetadata)
                              .payToAddress(voter, referenceAssets)
-                             .payToContract(voteCounter, voteDatum, mintAssets)
+                             .payToContract(voteCounter, voteDatum, lockedAssets)
                              .validTo(new Date().getTime() + TEN_MINS);
 
       const txComplete = await txBuilder.complete({ nativeUplc: false });
