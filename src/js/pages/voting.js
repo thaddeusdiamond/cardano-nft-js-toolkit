@@ -327,10 +327,14 @@ export async function countBallots(blockfrostKey, pubKeyHash, policyId, pollsClo
       }
     }
 
-    const votePrinted = JSON.stringify(voteAssets, undefined, 4);
-    document.getElementById(voteOutputDom).innerHTML =
-     `<pre style="text-align: start">${JSON.stringify(voteAssets, undefined, 4)}</pre>`;
-    return votePrinted;
+    var csvOutput = 'unit,voter,vote,count\n';
+    for (const unit in voteAssets) {
+      const voteInfo = voteAssets[unit];
+      csvOutput += `${unit},${voteInfo.voter},${voteInfo.vote},${voteInfo.count}\n`;
+    }
+
+    document.getElementById(voteOutputDom).innerHTML = `<pre style="text-align: start">${csvOutput}</pre>`;
+    return csvOutput;
   } catch (err) {
     shortToast(JSON.stringify(err));
   }
