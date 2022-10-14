@@ -464,3 +464,59 @@ export async function burnBallots(blockfrostKey, pubKeyHash, policyId, pollsClos
     shortToast(JSON.stringify(err));
   }
 }
+
+export async function splitUpVotingAssets(blockfrostKey, policyId) {
+  try {
+    validate(
+      confirm('Nami sometimes has an error with large wallets that results in an error message about minADA.  We can attempt to send all Tangz to yourself (not leaving your wallet) to see if this fixes it.  Should we proceed?'),
+      'Did not agree to send-to-self in Nami'
+    );
+
+    const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
+    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before attempting a send-to-self using "Connect Wallet" button');
+    const wallet = await cardanoDApp.getConnectedWallet();
+
+    const lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'Please validate that your wallet is on the correct network');
+    lucid.selectWallet(wallet);
+    const voter = await lucid.wallet.address();
+
+    const votingAssets = await getVotingAssets([policyId], [], lucid);
+    const assetIds = Object.keys(votingAssets.assets);
+    var assetIdsChunked = [];
+    for (var i = 0; i < assetIds.length; i += MAX_NFTS_TO_MINT) {
+      assetIdsChunked.push(assetIds.slice(i, i + MAX_NFTS_TO_MINT));
+    }
+    if (assetIdsChunked.length > 1) {
+      validate(
+        confirm(`We will have to do multiple send-to-self transactions, should we proceed??`),
+        "Did not agree to submit multiple send-to-self transactions"
+      );
+    }
+
+    for (var i = 0; i < assetIdsChunked.length; i++) {
+      var referenceAssets = {};
+      for (const assetId of assetIdsChunked[i]) {
+        referenceAssets[assetId] = SINGLE_NFT;
+      }
+      referenceAssets[LOVELACE] = RebateCalculator.calculateRebate(1, assetIdsChunked[i].length, ballotNameChars);
+
+      const txBuilder = lucid.newTx()
+                             .addSigner(voter)
+                             .payToAddress(voter, referenceAssets)
+                             .validTo(new Date().getTime() + TEN_MINS);
+
+      const txComplete = await txBuilder.complete();
+      const txSigned = await txComplete.sign().complete();
+      const txHash = await txSigned.submit();
+      shortToast(`[${i + 1}/${assetIdsChunked.length}] Successfully sent-to-self in Tx ${txHash}`);
+      if (i < (assetIdsChunked.length - 1)) {
+        shortToast('Waiting for prior transaction to finish, please wait for pop-ups to complete your vote!');
+        await waitForTxn(lucid, blockfrostKey, txHash);
+      } else {
+        shortToast('Your Nami send-to-self transactions completed!');
+      }
+    }
+  } catch (err) {
+    shortToast(JSON.stringify(err));
+  }
+}
