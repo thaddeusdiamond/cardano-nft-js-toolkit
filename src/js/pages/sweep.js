@@ -4,11 +4,13 @@ import * as Marketplaces from "../third-party/marketplaces.js";
 
 import {coreToUtxo, fromHex, toHex, C as LCore, TxComplete} from "lucid-cardano";
 
+import {validated} from "../nft-toolkit/utils.js";
+
 const MSG_ID = '674';
 const MSG_KEY = 'msg';
 const MAX_METADATA_LEN = 64;
 const TX_HASH_LENGTH = 64;
-const UTXO_WAIT_TIMEOUT = 30;
+const UTXO_WAIT_TIMEOUT = 30000;
 
 function numRequiredPolicyAssets(requiredPolicy, availableUtxos) {
   const requiredAssets = {};
@@ -23,15 +25,15 @@ function numRequiredPolicyAssets(requiredPolicy, availableUtxos) {
   return Object.values(requiredAssets).reduce((acc, amount) => acc + amount, 0n);
 }
 
-async function cardanoDAppWallet() {
+export async function cardanoDAppWallet() {
   var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
   if (!cardanoDApp.isWalletConnected()) {
-    throw 'Please connect a wallet before sweeping using "Connect Wallet" button';
+    throw 'Please connect a wallet using the "Connect Wallet" button in the toolbar';
   }
   return await cardanoDApp.getConnectedWallet();
 }
 
-async function connectedLucidInst(blockfrostKey, wallet) {
+export async function connectedLucidInst(blockfrostKey, wallet) {
   const lucid = await LucidInst.getLucidInstance(blockfrostKey);
   if (lucid === undefined) {
     throw 'Please validate that your wallet is on mainnet';
@@ -43,7 +45,7 @@ async function connectedLucidInst(blockfrostKey, wallet) {
   return lucid;
 }
 
-async function validateHoldings(lucid, requiredPolicy, minAssets) {
+export async function validateHoldings(lucid, requiredPolicy, minAssets) {
   const address = await lucid.wallet.address();
   const availableUtxos = await lucid.wallet.getUtxos();
   const numPolicyAssets = numRequiredPolicyAssets(requiredPolicy, availableUtxos);
@@ -52,7 +54,7 @@ async function validateHoldings(lucid, requiredPolicy, minAssets) {
   }
 }
 
-async function getWalletInfo(wallet, lucid) {
+export async function getWalletInfo(wallet, lucid) {
   const walletUtxos = await wallet.getUtxos();
   const utxos = new Map(
     walletUtxos.map(utxo => {
@@ -60,14 +62,18 @@ async function getWalletInfo(wallet, lucid) {
       return [utxo, coreToUtxo(parsedUtxo)];
     })
   );
+
+  const addressDetails = await lucid.utils.getAddressDetails(await lucid.wallet.address());
+  const stakeAddress = await lucid.utils.credentialToRewardAddress(addressDetails.stakeCredential);
   return {
-    address: await lucid.wallet.address(),
+    address: validated(addressDetails.address?.bech32, 'Wallet error, missing payment address'),
+    stakeAddress: validated(stakeAddress, 'Wallet error, missing stake address'),
     collateral: await wallet.experimental.getCollateral(),
     utxos: utxos
   }
 }
 
-async function executeCborTxn(lucid, txn) {
+export async function executeCborTxn(lucid, txn) {
   const txnBytes = fromHex(txn.txn.cbor);
   const txnFromCbor = LCore.Transaction.from_bytes(txnBytes);
   var txComplete = new TxComplete(lucid, txnFromCbor);
@@ -153,7 +159,7 @@ async function executeTxn(lucid, txn) {
   throw `Unrecognized txn: ${JSON.stringify(txn)}`;
 }
 
-async function waitForTxn(blockfrostKey, txHash) {
+export async function waitForTxn(blockfrostKey, txHash) {
   const wallet = await cardanoDAppWallet();
   const lucid = await connectedLucidInst(blockfrostKey, wallet);
   const walletInfo = await getWalletInfo(wallet, lucid);

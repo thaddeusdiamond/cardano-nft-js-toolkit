@@ -1,0 +1,40 @@
+.wt-list-collection-header {
+  border-bottom: 1px solid #EAEDF6;
+}
+
+.wt-list-card {
+  border: 1px solid #EAEDF6;
+  border-radius: 5px;
+  margin: 0px 10px 10px 0px;
+}
+
+.wt-list-info {
+  padding: 10px;
+}
+
+.wt-list-image {
+  height: 200px;
+  width: 200px;
+  border-bottom: 1px solid #EAEDF6;
+}
+
+.wt-list-name {
+  margin: 0px;
+}
+
+.wt-list-policy {
+  margin: 0px
+}
+
+.wt-list-price {
+  width: 120px;
+}
+
+.wt-list-buttons {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  min-width: 100%;
+  background: rgba(255,255,255,0.9);
+  border-top: 1px solid #EAEDF6;
+}
