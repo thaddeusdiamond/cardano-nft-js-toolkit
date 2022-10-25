@@ -230,9 +230,9 @@ function getCollectionDom() {
   return collectionDom;
 }
 
-function getCollectionHeaderDom(collection) {
+function getCollectionHeaderDom(collection, floorPrice) {
   const headerDom = document.createElement('div');
-  headerDom.innerHTML = `<h4 class="wt-list-collection-header">${collection}</h4>`;
+  headerDom.innerHTML = `<h4 class="wt-list-collection-header">${collection} <em>(floor: ${floorPrice ? floorPrice : '--'}₳)</em></h4>`;
   return headerDom;
 }
 
@@ -265,10 +265,11 @@ async function loadWallet(blockfrostKey) {
   try {
     const wallet = await cardanoDAppWallet();
     const lucid = await connectedLucidInst(blockfrostKey, wallet);
-    const collections = {};
     const listerAddress = await lucid.wallet.address();
     const walletNfts = await getWalletNfts(listerAddress);
 
+    const collections = {};
+    const floorPrices = {};
     for (const token of walletNfts.tokens) {
       const quantity = Number(token.quantity);
       if (quantity != 1) {
@@ -281,6 +282,9 @@ async function loadWallet(blockfrostKey) {
       const source = token.source;
       if (!(collectionName in collections)) {
         collections[collectionName] = {}
+      }
+      if (token.collections?.jpg_floor_lovelace !== undefined) {
+        floorPrices[collectionName] = Number(token.collections?.jpg_floor_lovelace) / LOVELACE_TO_ADA;
       }
       collections[collectionName][assetId] = {
         id: assetId,
@@ -296,7 +300,7 @@ async function loadWallet(blockfrostKey) {
     for (const collection of collectionNames) {
       const collectionDom = getCollectionDom();
       document.getElementById('wt-list-wallet').appendChild(collectionDom);
-      const collectionHeader = getCollectionHeaderDom(collection);
+      const collectionHeader = getCollectionHeaderDom(collection, floorPrices[collection]);
       collectionDom.appendChild(collectionHeader);
       for (const assetId in collections[collection]) {
         const asset = collections[collection][assetId];
