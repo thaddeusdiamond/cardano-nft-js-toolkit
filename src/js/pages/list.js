@@ -17,6 +17,7 @@ const API_BASE = "https://server.jpgstoreapis.com";
 const IPFS_BASE = 'https://ipfs.jpgstoreapis.com';
 const LIST_NONCE_LEN = 16;
 const LOVELACE_LIST_AMT = 5 * LOVELACE_TO_ADA;
+const NONE = 0;
 const ONE_DAY_SEC = 86400;
 
 const ERROR_ICON = "https://sweep.wildtangz.pages.dev/error-med.png";
@@ -27,6 +28,9 @@ const TX_HASH_LENGTH = 64;
 
 const MAX_WAIT_ATTEMPTS = 12;
 const UTXO_WAIT_TIMEOUT = 30000;
+
+const OWNED = 'owned';
+const LISTED = 'listed';
 
 export function hideAlertBox() {
   document.getElementById('wt-list-status').style.display = 'none';
@@ -84,21 +88,20 @@ async function performSendToSelf(blockfrostKey, listings) {
   const listerAddress = await lucid.wallet.address();
   const txBuilder = lucid.newTx();
   for (const listing of listings) {
-    txBuilder.payToAddress(listerAddress, {
-      lovelace: LOVELACE_LIST_AMT,
-      [listing.id]: listing.quantity
-    });
+    var sendToSelfAssets = { lovelace: LOVELACE_LIST_AMT }
+    if (listing.quantity > 0) {
+      sendToSelfAssets[listing.id] = listing.quantity;
+    }
+    txBuilder.payToAddress(listerAddress, sendToSelfAssets);
   }
 
   return await completeAndSignTxn(txBuilder);
 }
 
-async function performFeeTxn(blockfrostKey, adaFee) {
+async function performFeeTxn(blockfrostKey, feeAda) {
   const wallet = await cardanoDAppWallet();
   const lucid = await connectedLucidInst(blockfrostKey, wallet);
-
-  const lovelaceFee = adaFee * LOVELACE_TO_ADA;
-  const txBuilder = lucid.newTx().payToAddress(FEE_ADDR, {lovelace: lovelaceFee});
+  const txBuilder = lucid.newTx().payToAddress(FEE_ADDR, {lovelace: feeAda * LOVELACE_TO_ADA});
   return await completeAndSignTxn(txBuilder);
 }
 
@@ -108,8 +111,17 @@ function generateNonce(size) {
   ).join('');
 }
 
-async function buildListTxn(assetId, priceAda, address, stakeAddress, collateralUtxo, listingUtxo) {
-  const tracingId = `${stakeAddress}-${new Date().toISOString()}-${generateNonce(LIST_NONCE_LEN)}`;
+async function buildJpgStoreTxn(buildTxnJson) {
+  return await fetch(`${API_BASE}/transaction/build`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(buildTxnJson)
+  }).then(res => res.json());
+}
+
+async function buildListTxn(assetId, priceAda, address, collateralUtxo, listingUtxo, tracingId) {
   const priceLovelace = (priceAda * LOVELACE_TO_ADA).toString();
   const buildTxnJson = {
     collateral: [collateralUtxo],
@@ -123,14 +135,30 @@ async function buildListTxn(assetId, priceAda, address, stakeAddress, collateral
     tracingId: tracingId
   };
 
-  const listingTxn = await fetch(`${API_BASE}/transaction/build`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(buildTxnJson)
-  }).then(res => res.json());
-  return listingTxn;
+  return await buildJpgStoreTxn(buildTxnJson);
+}
+
+async function buildDelistTxn(address, listingId, collateralUtxo, listingUtxo, tracingId) {
+  const buildTxnJson = {
+    collateral: [collateralUtxo],
+    utxos: [listingUtxo],
+    address: address,
+    action: "DELIST",
+    listingId: listingId,
+    tracingId: tracingId
+  };
+
+  return await buildJpgStoreTxn(buildTxnJson);
+}
+
+async function buildTxn(assetId, listing, address, stakeAddress, collateralUtxo, listingUtxo) {
+  const tracingId = `${stakeAddress}-${new Date().toISOString()}-${generateNonce(LIST_NONCE_LEN)}`;
+  if (listing.type === OWNED) {
+    return await buildListTxn(assetId, listing.priceAda, address, collateralUtxo, listingUtxo, tracingId);
+  } else if (listing.type === LISTED) {
+    return await buildDelistTxn(address, listing.listingId, collateralUtxo, listingUtxo, tracingId);
+  }
+  throw `Unrecognized transaction type ${listing.type}`;
 }
 
 export async function waitForTxn(blockfrostKey, txHash) {
@@ -148,10 +176,20 @@ export async function waitForTxn(blockfrostKey, txHash) {
   throw `Could not find results for transaction ${txHash} after ${MAX_WAIT_ATTEMPTS} attempts`;
 }
 
-function findAssetUtxo(assetId, listingName, walletInfo, txHash) {
-  const listingUtxos = [...walletInfo.utxos].filter(([utxo, utxoCore]) => (utxoCore.txHash === txHash) && (utxoCore.assets[assetId] === 1n));
-  validate(listingUtxos.length == 1, `Found incorrect number of holdings for ${listingName} (${listingUtxos.length})`);
-  return listingUtxos[0][0];
+function findAssetUtxo(assetId, quantity, listingName, walletInfo, txHash, exclusions) {
+  for (const utxoStr of walletInfo.utxos.keys()) {
+    const utxo = walletInfo.utxos.get(utxoStr);
+    if (utxo.txHash !== txHash) {
+      continue;
+    }
+    if (exclusions.contains(utxo.outputIndex)) {
+      continue;
+    }
+    if (quantity === 0 || (utxo.assets[assetId] >= quantity)) {
+      return [utxoStr, utxo];
+    }
+  }
+  throw `Could not find ${listingName} (txn ${txHash}, exclusions ${exclusions})`;
 }
 
 export async function performList(blockfrostKey) {
@@ -169,11 +207,20 @@ export async function performList(blockfrostKey) {
     for (const listingCheck of listingsChecked) {
       const listingDom = listingCheck.parentNode.parentNode;
       const assetId = listingDom.getAttribute('data-id');
-      const quantity = listingDom.getAttribute('data-qty');
-      const priceAda = Number(listingDom.querySelector('.wt-list-price').value);
+      const quantity = Number(listingDom.getAttribute('data-qty'));
+      const type = listingDom.getAttribute('data-type');
+      const listingId = Number(listingDom.getAttribute('data-listingId'));
+      const priceAda = Number(listingDom.querySelector('.wt-list-price')?.value);
       const name = listingDom.querySelector('.wt-list-name').textContent;
-      validate(priceAda > MIN_LISTING_PRICE, `${name} listing price must be greater than ${MIN_LISTING_PRICE}₳`);
-      listings.push({ id: assetId, priceAda: priceAda, name: name, quantity: quantity });
+      validate((type === LISTED) || (priceAda > MIN_LISTING_PRICE), `${name} listing price must be greater than ${MIN_LISTING_PRICE}₳`);
+      listings.push({
+        id: assetId,
+        priceAda: priceAda,
+        name: name,
+        quantity: quantity,
+        type: type,
+        listingId: listingId
+      });
     }
 
     updateProgress('Validating your Wild Tangz holdings...');
@@ -194,15 +241,19 @@ export async function performList(blockfrostKey) {
     const walletInfo = await getWalletInfo(wallet, lucid);
     const collateralUtxo = validated(walletInfo.collateral?.flat()[0], 'Wallet does not have any collateral set');
 
+    var exclusions = [];
     for (var i = 0; i < listings.length; i++) {
       const listing = listings[i];
       try {
-        updateProgress(`[${i + 1} / ${listings.length}] Attempting to list ${listing.name} for ${listing.priceAda}₳...`);
+        const listingTypeMsg = (listing.type === LISTED) ? 'delist' : 'list';
+        const priceTypeMsg = (listing.type === LISTED) ? '' : `for ${listing.priceAda}₳`
+        updateProgress(`[${i + 1} / ${listings.length}] Attempting to ${listingTypeMsg} ${listing.name} ${priceTypeMsg}...`);
         const assetId = listing.id;
-        const listingUtxo = findAssetUtxo(assetId, listing.name, walletInfo, sendToSelfTx);
-        const listTxnBuild = await buildListTxn(assetId, listing.priceAda, walletInfo.address, walletInfo.stakeAddress, collateralUtxo, listingUtxo);
+        const listingUtxoPair = findAssetUtxo(assetId, listing.quantity, listing.name, walletInfo, sendToSelfTx, exclusions);
+        exclusions.push(listingUtxoPair[1].outputIndex);
+        const listTxnBuild = await buildTxn(assetId, listing, walletInfo.address, walletInfo.stakeAddress, collateralUtxo, listingUtxoPair[0]);
         const listTxn = await executeCborTxn(lucid, {txn: listTxnBuild});
-        updateSuccess(`[${i + 1} / ${listings.length}] Successfully listed ${listing.name} for ${listing.priceAda}₳! (tx: ${listTxn.txHash})`);
+        updateSuccess(`[${i + 1} / ${listings.length}] Successfully ${listingTypeMsg}ed ${listing.name} ${priceTypeMsg}! (tx: ${listTxn.txHash})`);
         successfulListings++;
       } catch (err) {
         const msg = typeof(err) === 'string' ? err : JSON.stringify(err, Object.getOwnPropertyNames(err));
@@ -213,7 +264,7 @@ export async function performList(blockfrostKey) {
       }
     }
 
-    updateSuccess(`Listed ${successfulListings} successfully out of ${listings.length} selected!`);
+    updateSuccess(`Listed/delisted ${successfulListings} successfully out of ${listings.length} selected!`);
   } catch (err) {
     const msg = typeof(err) === 'string' ? err : JSON.stringify(err, Object.getOwnPropertyNames(err));
     updateError(msg);
@@ -240,7 +291,7 @@ function getCollectionHeaderDom(collection, floorPrice) {
 function getAssetDom(asset) {
   const assetDom = document.createElement('div');
   assetDom.innerHTML = `
-    <div class="wt-list-card sqs-col-2" data-id="${asset.id}" data-qty="${asset.quantity}">
+    <div class="wt-list-card ${asset.type} sqs-col-2" data-id="${asset.id}" data-qty="${asset.quantity}" data-type="${asset.type}" data-listingId="${asset.listingId}">
       <div class="wt-list-image">
         <img src="${IPFS_BASE}/${asset.source}" width="100%" loading="lazy" />
       </div>
@@ -248,10 +299,34 @@ function getAssetDom(asset) {
         <h4 class="wt-list-name">${asset.name}</h4>
         <p class="wt-list-policy">${asset.collection}</p>
         <input class="wt-list-checkbox" type="checkbox" />
-        <input class="wt-list-price" type="number" placeholder="List Price (₳)" />
+        ${asset.type === OWNED ?
+            '<input class="wt-list-price" type="number" placeholder="List Price (₳)" />' :
+            '<span class="wt-delist-info">Click to Delist</span>'}
       </div>
     </div>`;
   return assetDom;
+}
+
+function addToCollection(collections, floorPrices, collectionName, policy, token, quantity, assetType, listingId) {
+  const assetId = token.asset_id;
+  const assetName = token.display_name;
+  const source = token.source;
+  if (!(collectionName in collections)) {
+    collections[collectionName] = {}
+  }
+  if (token.collections?.jpg_floor_lovelace !== undefined) {
+    floorPrices[collectionName] = Number(token.collections?.jpg_floor_lovelace) / LOVELACE_TO_ADA;
+  }
+  collections[collectionName][assetName] = {
+    id: assetId,
+    name: assetName,
+    policy: policy,
+    collection: collectionName,
+    quantity: quantity,
+    source: source,
+    type: assetType,
+    listingId: listingId
+  };
 }
 
 async function getWalletNfts(address) {
@@ -276,25 +351,15 @@ async function loadWallet(blockfrostKey) {
       if (quantity != 1) {
         continue;
       }
-      const assetId = token.asset_id;
-      const assetName = token.display_name;
       const policy = token.policy_id;
       const collectionName = token.collections?.display_name;
-      const source = token.source;
-      if (!(collectionName in collections)) {
-        collections[collectionName] = {}
-      }
-      if (token.collections?.jpg_floor_lovelace !== undefined) {
-        floorPrices[collectionName] = Number(token.collections?.jpg_floor_lovelace) / LOVELACE_TO_ADA;
-      }
-      collections[collectionName][assetId] = {
-        id: assetId,
-        name: assetName,
-        policy: policy,
-        collection: collectionName,
-        quantity: quantity,
-        source: source
-      };
+      addToCollection(collections, floorPrices, collectionName, policy, token, quantity, OWNED);
+    }
+
+    for (const token of walletNfts.listings) {
+      const policy = token.asset_id.slice(0, 56);
+      const collectionName = token.collection_display_name;
+      addToCollection(collections, floorPrices, collectionName, policy, token, NONE, LISTED, token.id);
     }
 
     const collectionNames = Object.keys(collections).sort();
@@ -303,8 +368,8 @@ async function loadWallet(blockfrostKey) {
       document.getElementById('wt-list-wallet').appendChild(collectionDom);
       const collectionHeader = getCollectionHeaderDom(collection, floorPrices[collection]);
       collectionDom.appendChild(collectionHeader);
-      for (const assetId in collections[collection]) {
-        const asset = collections[collection][assetId];
+      for (const assetName of Object.keys(collections[collection]).sort()) {
+        const asset = collections[collection][assetName];
         const assetDom = getAssetDom(asset);
         collectionDom.appendChild(assetDom);
       }
