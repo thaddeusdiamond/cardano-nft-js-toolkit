@@ -11,6 +11,7 @@ const FEE_ADDR = 'addr1qyqnxg39d5258mhu6739y0c69h38zzzc8q6t2vknlhvssv5xmxx6g6njm
 
 const LOVELACE_TO_ADA = 1000000;
 const MIN_LISTING_PRICE = 5;
+const PRICE_PER_NFT = 1;
 
 const API_BASE = "https://server.jpgstoreapis.com";
 const IPFS_BASE = 'https://ipfs.jpgstoreapis.com';
@@ -183,8 +184,8 @@ export async function performList(blockfrostKey) {
     updateProgress(`Successfully split UTxOs.  Now waiting for transaction to register (BE PATIENT this may take several minutes) [txn ${sendToSelfTx}]...`);
     await waitForTxn(blockfrostKey, sendToSelfTx);
 
-    const fee = listings.length;
-    updateProgress(`Collecting fee of ${fee}₳ (1₳ per NFT)...`);
+    const fee = Math.max((listings.length * PRICE_PER_NFT), 1);
+    updateProgress(`Collecting fee of ${fee}₳ (${PRICE_PER_NFT}₳ per NFT)...`);
     await performFeeTxn(blockfrostKey, fee);
     updateProgress(`Collected fee of ${fee}₳ (thank you!)`);
 
