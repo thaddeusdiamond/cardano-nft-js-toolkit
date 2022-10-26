@@ -1,4 +1,4 @@
-import {fromHex} from "lucid-cardano";
+import {fromHex, toHex} from "lucid-cardano";
 
 import {cardanoDAppWallet, connectedLucidInst, executeCborTxn, getWalletInfo, validateHoldings} from "../pages/sweep.js";
 
@@ -19,6 +19,7 @@ const LIST_NONCE_LEN = 16;
 const LOVELACE_LIST_AMT = 5 * LOVELACE_TO_ADA;
 const NONE = 0;
 const ONE_DAY_SEC = 86400;
+const ONE_MIN_MS = 60000;
 
 const ERROR_ICON = "https://sweep.wildtangz.pages.dev/error-med.png";
 const PROGRESS_ICON = "https://c.tenor.com/w5DF_eXs5S4AAAAC/cardano-logo.gif";
@@ -111,14 +112,18 @@ function generateNonce(size) {
   ).join('');
 }
 
-async function buildJpgStoreTxn(buildTxnJson) {
-  return await fetch(`${API_BASE}/transaction/build`, {
+async function submitToJpgStore(bodyJson, endpoint) {
+  return await fetch(`${API_BASE}/${endpoint}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(buildTxnJson)
+    body: JSON.stringify(bodyJson)
   }).then(res => res.json());
+}
+
+async function buildJpgStoreTxn(buildTxnJson) {
+  return await submitToJpgStore(buildTxnJson, 'transaction/build');
 }
 
 async function buildListTxn(assetId, priceAda, address, collateralUtxo, listingUtxo, tracingId) {
@@ -151,8 +156,7 @@ async function buildDelistTxn(address, listingId, collateralUtxo, listingUtxo, t
   return await buildJpgStoreTxn(buildTxnJson);
 }
 
-async function buildTxn(assetId, listing, address, stakeAddress, collateralUtxo, listingUtxo) {
-  const tracingId = `${stakeAddress}-${new Date().toISOString()}-${generateNonce(LIST_NONCE_LEN)}`;
+async function buildTxn(assetId, listing, address, tracingId, collateralUtxo, listingUtxo) {
   if (listing.type === OWNED) {
     return await buildListTxn(assetId, listing.priceAda, address, collateralUtxo, listingUtxo, tracingId);
   } else if (listing.type === LISTED) {
@@ -191,6 +195,21 @@ function findAssetUtxo(assetId, quantity, listingName, walletInfo, txHash, exclu
   }
   throw `Could not find ${listingName} (txn ${txHash}, exclusions ${exclusions})`;
 }
+
+function postTxnAsync(assetId, txn, tracingId) {
+  setTimeout(() => fetch(`${API_BASE}/token/${assetId}/heal`, {method: 'PATCH'}).then(_ => _), ONE_MIN_MS);
+}
+
+/*async function performPostTxnAsync(assetId, txn, tracingId) {
+  const registerTxnJson = {
+    assetId: assetId,
+    txHash: txn.txHash,
+    witnessSet: toHex(txn.txSigned.witness_set().to_bytes()),
+    tracingId: tracingId
+  };
+
+  return await submitToJpgStore(registerTxnJson, 'transaction/register');
+}*/
 
 export async function performList(blockfrostKey) {
   const listingsChecked = document.querySelectorAll('input[class=wt-list-checkbox]:checked');
@@ -251,8 +270,10 @@ export async function performList(blockfrostKey) {
         const assetId = listing.id;
         const listingUtxoPair = findAssetUtxo(assetId, listing.quantity, listing.name, walletInfo, sendToSelfTx, exclusions);
         exclusions.push(listingUtxoPair[1].outputIndex);
-        const listTxnBuild = await buildTxn(assetId, listing, walletInfo.address, walletInfo.stakeAddress, collateralUtxo, listingUtxoPair[0]);
+        const tracingId = `${walletInfo.stakeAddress}-${new Date().toISOString()}-${generateNonce(LIST_NONCE_LEN)}`;
+        const listTxnBuild = await buildTxn(assetId, listing, walletInfo.address, tracingId, collateralUtxo, listingUtxoPair[0]);
         const listTxn = await executeCborTxn(lucid, {txn: listTxnBuild});
+        postTxnAsync(assetId, listTxn, tracingId);
         updateSuccess(`[${i + 1} / ${listings.length}] Successfully ${listingTypeMsg}ed ${listing.name} ${priceTypeMsg}! (tx: ${listTxn.txHash})`);
         successfulListings++;
       } catch (err) {
