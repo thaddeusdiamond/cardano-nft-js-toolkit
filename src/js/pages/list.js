@@ -14,7 +14,9 @@ const MIN_LISTING_PRICE = 5;
 const PRICE_PER_NFT = 1;
 
 const API_BASE = "https://server.jpgstoreapis.com";
+const COLLECTION_BASE = 'https://jpg.store/collection';
 const IPFS_BASE = 'https://ipfs.jpgstoreapis.com';
+const NFT_BASE = 'https://jpg.store/asset';
 const LIST_NONCE_LEN = 16;
 const LOVELACE_LIST_AMT = 5 * LOVELACE_TO_ADA;
 const NONE = 0;
@@ -314,11 +316,17 @@ function getAssetDom(asset) {
   assetDom.innerHTML = `
     <div class="wt-list-card ${asset.type} sqs-col-2" data-id="${asset.id}" data-qty="${asset.quantity}" data-type="${asset.type}" data-listingId="${asset.listingId}">
       <div class="wt-list-image">
-        <img src="${IPFS_BASE}/${asset.source}" width="100%" loading="lazy" />
+        <a href="${NFT_BASE}/${asset.id}" target="_blank">
+          <img src="${IPFS_BASE}/${asset.source}" width="100%" loading="lazy" />
+        </a>
       </div>
       <div class="wt-list-info">
-        <h4 class="wt-list-name">${asset.name}</h4>
-        <p class="wt-list-policy">${asset.collection}</p>
+        <h4 class="wt-list-name">
+          <a href="${NFT_BASE}/${asset.id}" target="_blank">${asset.name}</a>
+        </h4>
+        <p class="wt-list-policy">
+          <a href="${COLLECTION_BASE}/${asset.policy}" target="_blank">${asset.collection}</a>
+        </p>
         <input class="wt-list-checkbox" type="checkbox" />
         ${asset.type === OWNED ?
             '<input class="wt-list-price" type="number" placeholder="List Price (₳)" />' :
