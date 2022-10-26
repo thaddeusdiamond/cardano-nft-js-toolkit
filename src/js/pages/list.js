@@ -377,10 +377,13 @@ async function loadWallet(blockfrostKey) {
       addToCollection(collections, floorPrices, collectionName, policy, token, quantity, OWNED);
     }
 
-    for (const token of walletNfts.listings) {
-      const policy = token.asset_id.slice(0, 56);
-      const collectionName = token.collection_display_name;
-      addToCollection(collections, floorPrices, collectionName, policy, token, NONE, LISTED, token.id);
+    const showDelist = document.getElementById('wt-list-delist-show').checked;
+    if (showDelist) {
+      for (const token of walletNfts.listings) {
+        const policy = token.asset_id.slice(0, 56);
+        const collectionName = token.collection_display_name;
+        addToCollection(collections, floorPrices, collectionName, policy, token, NONE, LISTED, token.id);
+      }
     }
 
     const collectionNames = Object.keys(collections).sort();
