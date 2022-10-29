@@ -14,6 +14,7 @@ import {validate, validated} from '../nft-toolkit/utils.js';
 const BURN_REDEEMER = 'd87a80';
 const LOVELACE = 'lovelace';
 const MAX_NFTS_TO_MINT = 20;
+const MAX_UTXOS_TO_REDEEM = 50;
 const MAX_ATTEMPTS = 12;
 const OPTIMIZE_HELIOS = true;
 const SINGLE_NFT = 1n;
@@ -313,6 +314,9 @@ export async function countBallots(blockfrostKey, pubKeyHash, policyId, pollsClo
     var voteAssets = {};
     const votes = await lucid.utxosAt(voteCounter);
     for (const vote of votes) {
+      if (!vote.datum) {
+        continue;
+      }
       const voteResult = Data.toJson(Data.from(vote.datum));
       for (const unit in vote.assets) {
         if (!unit.startsWith(mintingPolicyId)) {
@@ -361,40 +365,52 @@ export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsCl
     const mintingCompiledCode = getCompiledCode(mintingSourceCode);
     const mintingPolicyId = mintingCompiledCode.mintingPolicyHash.hex;
 
-    var voterRepayments = {};
-    const votesToCollect = [];
     const votes = await lucid.utxosAt(voteCounter);
-    for (const vote of votes) {
-      const voteResult = Data.toJson(Data.from(vote.datum));
-      var hasVote = false;
-      for (const unit in vote.assets) {
-        if (!unit.startsWith(mintingPolicyId)) {
+    const votesChunked = [];
+    for (var i = 0; i < votes.length; i += MAX_UTXOS_TO_REDEEM) {
+      votesChunked.push(votes.slice(i, i + MAX_UTXOS_TO_REDEEM));
+    }
+    for (const votesChunk of votesChunked) {
+      var voterRepayments = {};
+      var votesToCollect = [];
+      for (const vote of votesChunk) {
+        if (!vote.datum) {
           continue;
         }
-        hasVote = true;
-        const voteCount = Number(vote.assets[unit]);
-        if (!(voteResult.voter in voterRepayments)) {
-          voterRepayments[voteResult.voter] = {}
+        const voteResult = Data.toJson(Data.from(vote.datum));
+        var hasVote = false;
+        for (const unit in vote.assets) {
+          if (!unit.startsWith(mintingPolicyId)) {
+            continue;
+          }
+          hasVote = true;
+          const voteCount = Number(vote.assets[unit]);
+          if (!(voteResult.voter in voterRepayments)) {
+            voterRepayments[voteResult.voter] = {}
+          }
+          if (!(unit in voterRepayments[voteResult.voter])) {
+            voterRepayments[voteResult.voter][unit] = 0;
+          }
+          voterRepayments[voteResult.voter][unit] += voteCount;
         }
-        voterRepayments[voteResult.voter][unit] = voteCount;
+
+        if (hasVote) {
+          votesToCollect.push(vote);
+        }
       }
 
-      if (hasVote) {
-        votesToCollect.push(vote);
+      const txBuilder = lucid.newTx()
+                             .addSigner(oracle)
+                             .collectFrom(votesToCollect, Data.empty())
+                             .attachSpendingValidator(voteCounterScript);
+      for (const voter in voterRepayments) {
+        txBuilder.payToAddress(voter, voterRepayments[voter]);
       }
+      const txComplete = await txBuilder.complete({ nativeUplc: false });
+      const txSigned = await txComplete.sign().complete();
+      const txHash = await txSigned.submit();
+      shortToast(`Successfully counted ballots in ${txHash}`);
     }
-
-    const txBuilder = lucid.newTx()
-                           .addSigner(oracle)
-                           .collectFrom(votesToCollect, Data.empty())
-                           .attachSpendingValidator(voteCounterScript);
-    for (const voter in voterRepayments) {
-      txBuilder.payToAddress(voter, voterRepayments[voter]);
-    }
-    const txComplete = await txBuilder.complete({ nativeUplc: false });
-    const txSigned = await txComplete.sign().complete();
-    const txHash = await txSigned.submit();
-    shortToast(`Successfully counted ballots in ${txHash}`);
   } catch (err) {
     shortToast(JSON.stringify(err));
   }

@@ -60,7 +60,7 @@
           <div class="col-12 centered">
             <h4>Administrative Use Only</h4>
             <input id="vote-count" type="submit" value="COUNT VOTES!" />
-            <input id="vote-redeemer" type="submit" value="REDEEM BALLOTS!" disabled />
+            <input id="vote-redeemer" type="submit" value="REDEEM BALLOTS!" />
           </div>
       </div>
 
@@ -110,7 +110,6 @@
         const ballots = await NftToolkit.Voting.countBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, voteOutputDom, ballotPrefix);
         if (ballots) {
           window.open(`data:application/txt,${encodeURIComponent(ballots)}`);
-          document.getElementById('vote-redeemer').disabled = false;
         }
       });
 
