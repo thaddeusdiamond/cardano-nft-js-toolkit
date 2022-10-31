@@ -416,10 +416,10 @@ export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsCl
   }
 }
 
-export async function burnBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix) {
+export async function burnExtraBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix) {
   try {
     const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
-    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before voting using "Connect Wallet" button');
+    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before burning extra votes using "Connect Wallet" button');
     const wallet = await cardanoDApp.getConnectedWallet();
 
     const lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'Please validate that your wallet is on the correct network');
@@ -440,13 +440,13 @@ export async function burnBallots(blockfrostKey, pubKeyHash, policyId, pollsClos
 
     const utxos = await lucid.wallet.getUtxos();
     const utxosToCollect = [];
-    const mintAssets = {};
+    const burnAssets = {};
     var hasAlerted = false;
     for (const utxo of utxos) {
       var foundAsset = false;
       for (const unit in utxo.assets) {
         if (unit.startsWith(mintingPolicyId)) {
-          if (Object.keys(mintAssets).length >= MAX_NFTS_TO_MINT) {
+          if (Object.keys(burnAssets).length >= MAX_NFTS_TO_MINT) {
             if (!hasAlerted) {
               alert(`Can only burn ${MAX_NFTS_TO_MINT} ballots to burn at a time.  Start with that, then click this button again.`);
               hasAlerted = true;
@@ -454,10 +454,10 @@ export async function burnBallots(blockfrostKey, pubKeyHash, policyId, pollsClos
             break;
           }
           foundAsset = true;
-          if (!(unit in mintAssets)) {
-            mintAssets[unit] = 0n;
+          if (!(unit in burnAssets)) {
+            burnAssets[unit] = 1n;
           }
-          mintAssets[unit] -= utxo.assets[unit];
+          burnAssets[unit] -= utxo.assets[unit];
         }
       }
 
@@ -466,18 +466,32 @@ export async function burnBallots(blockfrostKey, pubKeyHash, policyId, pollsClos
       }
     }
 
+    var hasExtras = false;
+    for (const ballot in burnAssets) {
+      if (burnAssets[ballot] < 0n) {
+        hasExtras = true;
+        break;
+      }
+    }
+    if (!hasExtras) {
+      shortToast(`Could not find any extra ballots of policy '${mintingPolicyId}' in your wallet!`);
+      return false;
+    }
+
     const txBuilder = lucid.newTx()
                            .addSigner(voter)
                            .collectFrom(utxosToCollect)
-                           .mintAssets(mintAssets, BURN_REDEEMER)
+                           .mintAssets(burnAssets, BURN_REDEEMER)
                            .attachMintingPolicy(mintingPolicy)
                            .validTo(new Date().getTime() + TEN_MINS);
     const txComplete = await txBuilder.complete({ nativeUplc: false });
     const txSigned = await txComplete.sign().complete();
     const txHash = await txSigned.submit();
     shortToast(`Successfully burned your ballots in ${txHash}`);
+    return true;
   } catch (err) {
     shortToast(JSON.stringify(err));
+    return false;
   }
 }
 
