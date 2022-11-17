@@ -150,7 +150,7 @@ export async function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
     const mimeType = mime.getType(file.name);
     const cid = await NftStorage.uploadFromFileInput(nftStorageToken, file);
 
-    if (!mimeType.startsWith(IMAGE_MIME_PREFIX)) {
+    if ((mimeType === undefined) || !mimeType.startsWith(IMAGE_MIME_PREFIX)) {
       alert(`File '${file.name}' is of type '${mimeType}', not an image.  It will not show a thumbnail on web viewers like pool.pm.  To add a thumbnail to your NFT, please enter a trait at the right with Name 'image' and a link to your thumbnail in 'Value' (e.g., 'ipfs://Qmz...')`);
     }
 
