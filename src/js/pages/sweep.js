@@ -12,19 +12,6 @@ const MAX_METADATA_LEN = 64;
 const TX_HASH_LENGTH = 64;
 const UTXO_WAIT_TIMEOUT = 30000;
 
-function numRequiredPolicyAssets(requiredPolicy, availableUtxos) {
-  const requiredAssets = {};
-  for (const availableUtxo of availableUtxos) {
-    const assets = availableUtxo.assets;
-    for (const asset in assets) {
-      if (asset.startsWith(requiredPolicy)) {
-        requiredAssets[asset] = assets[asset];
-      }
-    }
-  }
-  return Object.values(requiredAssets).reduce((acc, amount) => acc + amount, 0n);
-}
-
 export async function cardanoDAppWallet() {
   var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
   if (!cardanoDApp.isWalletConnected()) {
@@ -43,15 +30,6 @@ export async function connectedLucidInst(blockfrostKey, wallet) {
   }
   lucid.selectWallet(wallet);
   return lucid;
-}
-
-export async function validateHoldings(lucid, requiredPolicy, minAssets) {
-  const address = await lucid.wallet.address();
-  const availableUtxos = await lucid.wallet.getUtxos();
-  const numPolicyAssets = numRequiredPolicyAssets(requiredPolicy, availableUtxos);
-  if (numPolicyAssets < minAssets) {
-    throw `The sweeper currently requires ${minAssets} NFTs with policy ID ${requiredPolicy} to be used!`;
-  }
 }
 
 export async function getWalletInfo(wallet, lucid) {
@@ -180,6 +158,13 @@ function bigIntStringify(obj) {
   );
 }
 
+function bifurcatedTokenGateMap(params) {
+  if (params.tokenGateMap === undefined) {
+    return { [params.requiredPolicy]: params.minAssets }
+  }
+  return params.tokenGateMap;
+}
+
 export async function processMessageData(message) {
   switch (message.type) {
     case "WT_LOAD_PREP":
@@ -195,9 +180,15 @@ export async function processMessageData(message) {
       break;
     case "WT_START_SWEEP":
       try {
+        const tokenGateMap = bifurcatedTokenGateMap(message.params);
+        const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
+        const isAuthorized = await cardanoDApp.walletMeetsTokenGate(tokenGateMap);
+        if (!isAuthorized) {
+          throw `The sweeper currently requires 2 WildTangz NFTs to be used!`;
+        }
+
         const wallet = await cardanoDAppWallet();
         const lucid = await connectedLucidInst(message.params.blockfrostKey, wallet);
-        await validateHoldings(lucid, message.params.requiredPolicy, message.params.minAssets);
         const walletInfo = await getWalletInfo(wallet, lucid);
         window.postMessage({ type: "WT_WALLET_READY", wallet: walletInfo }, "*");
       } catch (err) {

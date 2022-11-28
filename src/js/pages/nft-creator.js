@@ -168,8 +168,8 @@ export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slo
   e && e.preventDefault();
 
   try {
-    var blockfrostKey = validated(document.querySelector(blockfrostDom).value, 'Please enter a valid Blockfrost API key in the text box');
-    var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
+    const blockfrostKey = validated(document.querySelector(blockfrostDom).value, 'Please enter a valid Blockfrost API key in the text box');
+    const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before minting using "Connect Wallet" button');
 
     const policyExpirationSlot = await NftPolicy.NftPolicy.updateDatetimeSlotSpan(undefined, blockfrostDom, datetimeDom, slotDom);
@@ -213,25 +213,13 @@ export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slo
     const domToClear = getDomElementsToClear(traitsPrefix, nameDom, fileDom, ipfsDisplayDom, numMintsDom);
 
     lucid.selectWallet(wallet);
-    const address = await lucid.wallet.address();
-    const availableUtxos = await lucid.wallet.getUtxos();
-    const requiredAssets = {};
-    if (lucid.network === 'Mainnet') {
-      for (const availableUtxo of availableUtxos) {
-        const assets = availableUtxo.assets;
-        for (const asset in assets) {
-          if (asset.startsWith(Secrets.REQUIRED_POLICY_KEY)) {
-            requiredAssets[asset] = assets[asset];
-          }
-        }
-      }
-      const requiredAssetsFound = Object.values(requiredAssets).reduce((acc, amount) => acc + amount, 0n);
-      if (requiredAssetsFound < Secrets.REQUIRED_POLICY_MIN) {
-        alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least ${Secrets.REQUIRED_POLICY_MIN} NFTs with policy ID ${Secrets.REQUIRED_POLICY_KEY} - no need to refresh the page!`);
-        return;
-      }
+    const isAuthorized = await cardanoDApp.walletMeetsTokenGate(Secrets.AUTHORIZATION_MINS);
+    if (lucid.network === 'Mainnet' && !isAuthorized) {
+      alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least 1 WildTangz - no need to refresh the page!`);
+      return;
     }
 
+    const address = await lucid.wallet.address();
     var txBuilder = lucid.newTx()
                          .attachMintingPolicy(mintingPolicy)
                          .attachMetadata(NftPolicy.METADATA_KEY, chainMetadata)

@@ -13,6 +13,9 @@ const POLICY_ID_REGEX = /^[0-9a-f]{56}$/;
 const IPFS_START = 'ipfs://'
 const INVALID_IPFS_START = `${IPFS_START}bafy`;
 
+const REQUIRED_VENDING_MACHINE_RATIO = 500;
+const WILDTANGZ_POLICY_ID = '33568ad11f93b3e79ae8dee5ad928ded72adcea719e92108caf1521b';
+
 var VendingMachineInst = undefined;
 var MetadataRef = undefined;
 var HasAcknowledgedKeyGeneration = false;
@@ -89,24 +92,12 @@ async function validatePermissionsForRequiredAssets(cardanoDApp, blockfrostKey, 
   var lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'Please check that your wallet network matches the blockfrost key network');
   lucid.selectWallet(wallet);
 
-  var address = await lucid.wallet.address();
-  var requiredPolicyUtxos = await lucid.wallet.getUtxos();
-
-  var requiredAssets = {};
-  if (lucid.network === 'Mainnet') {
-    for (var requiredPolicyUtxo of requiredPolicyUtxos) {
-      var assets = requiredPolicyUtxo.assets;
-      for (var assetName in assets) {
-        if (assetName.startsWith(Secrets.REQUIRED_POLICY_KEY)) {
-          requiredAssets[assetName] = assets[assetName];
-        }
-      }
-    }
-    var requiredAssetsFound = Number(Object.values(requiredAssets).reduce((acc, amount) => acc + amount, 0n));
-    if ((numMetadata / requiredAssetsFound) > Secrets.REQUIRED_VENDING_MACHINE_RATIO) {
-      alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least 1 NFT with policy ID ${Secrets.REQUIRED_POLICY_KEY} for every ${Secrets.REQUIRED_VENDING_MACHINE_RATIO} metadata files you upload - no need to refresh the page!`);
-      throw 'Vending machine aborting';
-    }
+  var tokenGateCopy = {... Secrets.AUTHORIZATION_MINS};
+  tokenGateCopy[WILDTANGZ_POLICY_ID] = Math.ceil(numMetadata / REQUIRED_VENDING_MACHINE_RATIO);
+  const isAuthorized = await cardanoDApp.walletMeetsTokenGate(tokenGateCopy);
+  if (lucid.network === 'Mainnet' && !isAuthorized) {
+    alert(`Thanks for checking out this software! Testnet use is free, but to mint on mainnet, you must purchase at least 1 NFT with policy ID ${WILDTANGZ_POLICY_ID} for every ${REQUIRED_VENDING_MACHINE_RATIO} metadata files you upload - no need to refresh the page!`);
+    throw 'Vending machine aborting';
   }
 }
 

@@ -1,12 +1,15 @@
+import * as CardanoDAppJs from "../third-party/cardano-dapp-js.js";
+
 import {fromHex, toHex} from "lucid-cardano";
 
-import {cardanoDAppWallet, connectedLucidInst, executeCborTxn, getWalletInfo, validateHoldings} from "../pages/sweep.js";
-
+import {cardanoDAppWallet, connectedLucidInst, executeCborTxn, getWalletInfo} from "../pages/sweep.js";
 import {validate, validated} from "../nft-toolkit/utils.js";
 import {shortToast} from "../third-party/toastify-utils.js";
 
-const REQUIRED_POLICY_KEY = '33568ad11f93b3e79ae8dee5ad928ded72adcea719e92108caf1521b';
-const REQUIRED_POLICY_MIN = 4;
+const AUTHORIZATION_MINS = {
+  '33568ad11f93b3e79ae8dee5ad928ded72adcea719e92108caf1521b': 4,
+  '33566617519280305e147975f80914cea1c93e8049567829f7370fca': 1
+}
 const FEE_ADDR = 'addr1qyqnxg39d5258mhu6739y0c69h38zzzc8q6t2vknlhvssv5xmxx6g6njmjphu2rq7yxhygnygynqga74mnp776jvgsqsmxx684';
 
 const LOVELACE_TO_ADA = 1000000;
@@ -65,12 +68,6 @@ function updateError(msg) {
 
 function updateSuccess(msg) {
   updateAlertBox(msg, SUCCESS_ICON);
-}
-
-async function validateHoldingsBeforeList(blockfrostKey) {
-  const wallet = await cardanoDAppWallet();
-  const lucid = await connectedLucidInst(blockfrostKey, wallet);
-  await validateHoldings(lucid, REQUIRED_POLICY_KEY, REQUIRED_POLICY_MIN);
 }
 
 async function completeAndSignTxn(txBuilder) {
@@ -245,7 +242,10 @@ export async function performList(blockfrostKey) {
     }
 
     updateProgress('Validating your Wild Tangz holdings...');
-    await validateHoldingsBeforeList(blockfrostKey);
+    const isAuthorized = await CardanoDAppJs.getCardanoDAppInstance().walletMeetsTokenGate(AUTHORIZATION_MINS);
+    if (!isAuthorized) {
+      throw `The bulk lister currently requires 4 WildTangz NFTs to be used!`;
+    }
 
     updateProgress('Retrieving information to split up your UTxOs for listing...');
     const sendToSelfTx = await performSendToSelf(blockfrostKey, listings);
