@@ -1,8 +1,7 @@
 {
-  "name": "nami-frontend",
-  "version": "1.0.0",
-  "description": "Frontend for Tangz Website",
-  "private": "true",
+  "name": "cardano-nft-js-toolkit",
+  "version": "0.1.0",
+  "description": "Javascript tooling for Cardano NFT processes",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
