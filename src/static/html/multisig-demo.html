@@ -1,0 +1,206 @@
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.2.1/dist/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/cardano-dapp-js@1.0.5/dist/cardano-wallet-picker.css" rel="stylesheet" integrity="sha384-jeqm08LTVeNbS97UWy4EXaCioonM70aAFwSpoQITuPKgc53EI0+XfxoG+0hwMLqj" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" rel="stylesheet" integrity="sha384-1txFwJFikBxvmOF4oqBQdSBJQzEUrMDB2MMmedDaFGsjXYStJKO7JkwyAWPDXlkk" crossorigin="anonymous">
+
+    <script type="text/javascript" src="nft-toolkit.js"></script>
+    <link rel="stylesheet" href="drop-payment.css" />
+  </head>
+
+  <body>
+    <div class="container">
+
+      <div id="wallet-container" class="row"></div>
+
+      <div id="mint-viewport" class="row">
+        <div class="offset-3 col-3 text-end">
+          <label class="row">
+            Select NFT Background:
+            <select id="nft-background">
+              <option value="(92, 163, 212)">Blue Koi</option>
+              <option value="(222, 109, 124)">Carmine Pink</option>
+              <option value="(255, 255, 255)">Pure White</option>
+              <option value="(119, 91, 63)">Tobacco Brown</option>
+            </select>
+          </label>
+          <label class="row">
+            Select Fur Option:
+            <select id="nft-fur">
+              <option value="Blue">Blue</option>
+              <option value="Brown">Brown</option>
+              <option value="Crimson">Crimson</option>
+              <option value="Orange">Orange</option>
+              <option value="White">White</option>
+            </select>
+          </label>
+          <label class="row">
+            Select Mouth Option:
+            <select id="nft-mouth">
+              <option value="DefaultMouth">Default</option>
+              <option value="Banana">Banana</option>
+              <option value="Blunt">Blunt</option>
+              <option value="Cigar">Cigar</option>
+              <option value="Coffee">Coffee</option>
+            </select>
+          </label>
+          <label class="row">
+            Select Eyes Option:
+            <select id="nft-eyes">
+              <option value="DefaultEyes">Default</option>
+              <option value="Crying">Crying</option>
+              <option value="Stoned">Stoned</option>
+              <option value="Winking">Winking</option>
+            </select>
+          </label>
+          <label class="row">
+            Select Clothing Option:
+            <select id="nft-clothing">
+              <option value="None">None</option>
+              <option value="Baseball Uniform">Baseball Uniform</option>
+              <option value="Flannel">Flannel</option>
+              <option value="Overalls">Overalls</option>
+              <option value="Judge Robes">Judge Robes</option>
+            </select>
+          </label>
+          <label class="row">
+            Select Headwear Option:
+            <select id="nft-headwear">
+              <option value="None">None</option>
+              <option value="Beanie">Beanie</option>
+              <option value="Farmer Hat">Farmer Hat</option>
+              <option value="Plunger">Plunger</option>
+              <option value="Rasta">Rasta</option>
+            </select>
+          </label>
+        </div>
+        <div class="col-6 text-start">
+          <div id="nft-preview" style="width: 300px; height: 300px;">
+            <img id="nft-fur-img" style="width: 300px; position: absolute; z-index: 1;" />
+            <img id="nft-base-img" style="width: 300px; position: absolute; z-index: 2;" src="Tangz.png" />
+            <img id="nft-eyes-img" style="width: 300px; position: absolute; z-index: 3;" />
+            <img id="nft-headwear-img" style="width: 300px; position: absolute; z-index: 4;"  />
+            <img id="nft-clothing-img" style="width: 300px; position: absolute; z-index: 5;" />
+            <img id="nft-mouth-img" style="width: 300px; position: absolute; z-index: 6;" />
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="offset-3 col-6 p-1">
+          <input id="mint-slot" type="number" placeholder="(Optional) Exp. Slot" /></label>
+          <input id="mint-pubkeyhash" type="text" placeholder="Policy pub key hash for signing key..." />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="offset-3 col-6 p-1">
+          <label>Mint Price (<span>&#8371;</span>): <input id="mint-price" type="number" value="10" /></label>
+          <input id="mint-addr" type="text" placeholder="Enter payee here..." />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="offset-4 col-4 p-1">
+          <a id="mint-user-part" class="bordered text-reset text-decoration-none padded noselect pointer">USER SIGN FOR MULTI-SIG (1/2)</a>
+        </div>
+      </div>
+
+      <div id="mint-txn-output" class="row text-break">
+      </div>
+
+      <div id="mint-witness-output" class="row text-break">
+      </div>
+
+      <div class="row">
+        <div class="offset-4 col-4 p-1 mt-3">
+          <label>Policy Private Key: <input id="policy-skey" type="text" placeholder="Enter private key (e.g., 5820...) here" disabled /></label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="offset-4 col-4 p-1">
+          <a id="mint-policy-part" class="bordered text-reset text-decoration-none padded noselect pointer">COMPLETE MINT (2/2)</a>
+        </div>
+      </div>
+    </div>
+  </body>
+
+  <script>
+    NftToolkit.then(NftToolkit => {
+      const NFT_TRAITS = ['clothing', 'eyes', 'fur', 'mouth', 'headwear'];
+      const NO_PRIVATE_KEY = undefined;
+
+      NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container');
+
+      function updatePreview() {
+        const previewDiv = document.getElementById('nft-preview');
+        previewDiv.style.background = `rgb${document.getElementById('nft-background').value}`;
+        NFT_TRAITS.forEach(trait => {
+          const traitSelection = document.getElementById(`nft-${trait}`).value;
+          document.getElementById(`nft-${trait}-img`).src = `${traitSelection}.png`;
+        });
+      }
+
+      document.querySelectorAll('select').forEach(select => {
+        select.addEventListener('change', updatePreview);
+      });
+
+      updatePreview();
+
+      document.getElementById('mint-user-part').addEventListener('click', async e => {
+        e && e.preventDefault();
+
+        const payeeAddr = document.getElementById('mint-addr').value;
+        const lovelacePay = document.getElementById('mint-price').value * 1000000;
+        const payees = { [payeeAddr]: {lovelace: lovelacePay} }
+
+        const policyKeyHash = document.getElementById('mint-pubkeyhash').value;
+        const expirationSlot = document.getElementById('mint-slot').value;
+        const nftPolicy = new NftToolkit.NftPolicy(expirationSlot, NO_PRIVATE_KEY, policyKeyHash);
+
+        const uuid = (Date.now() + Math.random()).toString(32).replace('.', '').toUpperCase();
+        const assetName = `WildTangz MS${uuid}`;
+        const metadata = {
+          [nftPolicy.policyID]: {
+            [assetName]: {
+              name: assetName
+            }
+          }
+        }
+        const partialSignWitness = await NftToolkit.MultiSig.partialSignForUser(assetName, nftPolicy, metadata, payees);
+        document.getElementById('mint-witness-output').textContent = partialSignWitness;
+
+        document.getElementById('mint-txn-output').textContent = JSON.stringify({
+          assetName: assetName,
+          policyKeyHash: policyKeyHash,
+          expirationSlot: expirationSlot,
+          metadata: metadata,
+          payees: payees
+        });
+
+        document.getElementById('policy-skey').disabled = false;
+      })
+
+      document.getElementById('mint-policy-part').addEventListener('click', async e => {
+        const partialSignTx = JSON.parse(document.getElementById('mint-txn-output').textContent);
+        const partialSignTxWitnesses = [document.getElementById('mint-witness-output').textContent];
+        const policySKeyCbor = document.getElementById('policy-skey').value;
+        const policySKey = NftToolkit.NftPolicy.privateKeyFromCbor(policySKeyCbor);
+
+        const nftPolicy = new NftToolkit.NftPolicy(partialSignTx.expirationSlot, NO_PRIVATE_KEY, partialSignTx.policyKeyHash);
+        await NftToolkit.MultiSig.completePartiallySignedTxn(
+          partialSignTx.assetName,
+          nftPolicy,
+          partialSignTx.metadata,
+          partialSignTx.payees,
+          partialSignTxWitnesses,
+          policySKey
+        );
+      });
+
+    });
+  </script>
+</html>
