@@ -170,8 +170,8 @@
             }
           }
         }
-        const partialSignWitness = await NftToolkit.MultiSig.partialSignForUser(assetName, nftPolicy, metadata, payees);
-        document.getElementById('mint-witness-output').textContent = partialSignWitness;
+        const partialSign = await NftToolkit.MultiSig.partialSignForUser(assetName, nftPolicy, metadata, payees, NftToolkit.Secrets.TEST_BLOCKFROST_PROJ);
+        document.getElementById('mint-witness-output').textContent = partialSign.witnesses;
 
         document.getElementById('mint-txn-output').textContent = JSON.stringify({
           assetName: assetName,
@@ -197,7 +197,8 @@
           partialSignTx.metadata,
           partialSignTx.payees,
           partialSignTxWitnesses,
-          policySKey
+          policySKey,
+          NftToolkit.Secrets.TEST_BLOCKFROST_PROJ
         );
       });
 

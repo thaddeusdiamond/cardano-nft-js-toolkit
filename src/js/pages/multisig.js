@@ -8,7 +8,7 @@ import {toHex} from "lucid-cardano";
 import {longToast} from "../third-party/toastify-utils.js";
 import {validate, validated} from "../nft-toolkit/utils.js";
 
-async function createTxBuilder(assetName, nftPolicy, metadata, payees) {
+async function createTxBuilder(assetName, nftPolicy, metadata, payees, blockfrostKey) {
   const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
   validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before minting using "Connect Wallet" button');
 
@@ -16,7 +16,7 @@ async function createTxBuilder(assetName, nftPolicy, metadata, payees) {
   const mintAssets = { [assetNameHex]: 1n };
 
   const wallet = await cardanoDApp.getConnectedWallet();
-  const lucid = validated(await LucidInst.getLucidInstance(Secrets.TEST_BLOCKFROST_PROJ), 'This dApp is only supported on testnet');
+  const lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'Blockfrost key mismatch with wallet');
   lucid.selectWallet(wallet);
   const address = await lucid.wallet.address();
   const txBuilder = lucid.newTx()
@@ -33,22 +33,22 @@ async function createTxBuilder(assetName, nftPolicy, metadata, payees) {
   return txBuilder;
 }
 
-export async function partialSignForUser(assetName, nftPolicy, metadata, payees) {
+export async function partialSignForUser(assetName, nftPolicy, metadata, payees, blockfrostKey) {
   try {
-    const txBuilder = await createTxBuilder(assetName, nftPolicy, metadata, payees);
+    const txBuilder = await createTxBuilder(assetName, nftPolicy, metadata, payees, blockfrostKey);
     const txComplete = await txBuilder.complete();
     const partialSignedTx = await txComplete.partialSign();
-    longToast(`Successfully performed the user portion of the multi-sig mint!`);
-    return partialSignedTx;
+    longToast(`Successfully performed your portion of the mint! An authorized counterparty now needs to sign it...`);
+    return { witnesses: partialSignedTx, body: toHex(txComplete.txComplete.to_bytes())};
   } catch (err) {
     longToast(`An error occurred during user portion of multi-sig: ${JSON.stringify(err)}`);
     throw err;
   }
 }
 
-export async function completePartiallySignedTxn(assetName, nftPolicy, metadata, payees, txnWitnesses, policySKey) {
+export async function completePartiallySignedTxn(assetName, nftPolicy, metadata, payees, txnWitnesses, policySKey, blockfrostKey) {
   try {
-    const txBuilder = await createTxBuilder(assetName, nftPolicy, metadata, payees);
+    const txBuilder = await createTxBuilder(assetName, nftPolicy, metadata, payees, blockfrostKey);
     const txComplete = await txBuilder.complete();
     const txSigned = await txComplete.assemble(txnWitnesses).signWithPrivateKey(policySKey.to_bech32()).complete();
     const txSubmit = await txSigned.submit();
