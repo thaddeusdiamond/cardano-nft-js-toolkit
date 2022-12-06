@@ -1,0 +1,5 @@
+chalice==1.27.3
+Pillow==9.3.0
+requests==2.28.1
+pycardano==0.7.2
+blockfrost-python==0.5.2

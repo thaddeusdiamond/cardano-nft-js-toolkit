@@ -1,0 +1,9 @@
+.chalice/deployed/
+.chalice/deployments/
+.chalice/venv/
+
+chalicelib/secrets.py
+chalicelib/pics
+
+**/*.pyc
+**/*.pyc.[1-9]*

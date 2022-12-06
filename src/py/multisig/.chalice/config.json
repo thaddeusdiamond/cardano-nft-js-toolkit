@@ -1,0 +1,10 @@
+{
+  "version": "2.0",
+  "app_name": "multisig",
+  "stages": {
+    "dev": {
+      "api_gateway_stage": "api",
+      "lambda_memory_size": 768
+    }
+  }
+}
