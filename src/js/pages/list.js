@@ -132,8 +132,12 @@ async function buildListTxn(assetId, priceAda, address, collateralUtxo, listingU
     utxos: [listingUtxo],
     address: address,
     action: "SELL",
-    assetId: assetId,
-    priceLovelace: priceLovelace,
+    assets: [
+      {
+        asset: assetId,
+        price: priceLovelace
+      }
+    ],
     duration: ONE_DAY_SEC,
     offerTxHash: null,
     tracingId: tracingId
