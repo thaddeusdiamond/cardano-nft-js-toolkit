@@ -170,7 +170,11 @@
             }
           }
         }
-        const partialSign = await NftToolkit.MultiSig.partialSignForUser(assetName, nftPolicy, metadata, payees, NftToolkit.Secrets.TEST_BLOCKFROST_PROJ);
+
+        const lucid = await NftToolkit.MultiSig.instantiatedLucid(NftToolkit.Secrets.TEST_BLOCKFROST_PROJ);
+        const userAddress = await lucid.wallet.address();
+
+        const partialSign = await NftToolkit.MultiSig.partialSignForUser(assetName, userAddress, nftPolicy, metadata, payees, NftToolkit.Secrets.TEST_BLOCKFROST_PROJ);
         document.getElementById('mint-witness-output').textContent = partialSign.witnesses;
 
         document.getElementById('mint-txn-output').textContent = JSON.stringify({
@@ -190,9 +194,13 @@
         const policySKeyCbor = document.getElementById('policy-skey').value;
         const policySKey = NftToolkit.NftPolicy.privateKeyFromCbor(policySKeyCbor);
 
+        const lucid = await NftToolkit.MultiSig.instantiatedLucid(NftToolkit.Secrets.TEST_BLOCKFROST_PROJ);
+        const userAddress = await lucid.wallet.address();
+
         const nftPolicy = new NftToolkit.NftPolicy(partialSignTx.expirationSlot, NO_PRIVATE_KEY, partialSignTx.policyKeyHash);
         await NftToolkit.MultiSig.completePartiallySignedTxn(
           partialSignTx.assetName,
+          userAddress,
           nftPolicy,
           partialSignTx.metadata,
           partialSignTx.payees,

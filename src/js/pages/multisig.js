@@ -8,22 +8,26 @@ import {toHex} from "lucid-cardano";
 import {longToast} from "../third-party/toastify-utils.js";
 import {validate, validated} from "../nft-toolkit/utils.js";
 
-async function createTxBuilder(assetName, nftPolicy, metadata, payees, blockfrostKey) {
+
+export async function instantiatedLucid(blockfrostKey) {
   const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
   validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before minting using "Connect Wallet" button');
-
-  const assetNameHex = `${nftPolicy.policyID}${toHex(new TextEncoder().encode(assetName))}`
-  const mintAssets = { [assetNameHex]: 1n };
-
   const wallet = await cardanoDApp.getConnectedWallet();
   const lucid = validated(await LucidInst.getLucidInstance(blockfrostKey), 'Blockfrost key mismatch with wallet');
   lucid.selectWallet(wallet);
-  const address = await lucid.wallet.address();
+  return lucid;
+}
+
+async function createTxBuilder(assetName, recipient, nftPolicy, metadata, payees, blockfrostKey) {
+  const lucid = await instantiatedLucid(blockfrostKey);
+  const assetNameHex = `${nftPolicy.policyID}${toHex(new TextEncoder().encode(assetName))}`
+  const mintAssets = { [assetNameHex]: 1n };
+
   const txBuilder = lucid.newTx()
                        .attachMintingPolicy(nftPolicy.getMintingPolicy())
                        .attachMetadata(NftPolicy.METADATA_KEY, metadata)
                        .mintAssets(mintAssets)
-                       .payToAddress(address, mintAssets);
+                       .payToAddress(recipient, mintAssets);
   if (nftPolicy.slot && nftPolicy.slot > 0) {
     txBuilder.validTo(lucid.utils.slotToUnixTime(nftPolicy.slot));
   }
@@ -33,9 +37,9 @@ async function createTxBuilder(assetName, nftPolicy, metadata, payees, blockfros
   return txBuilder;
 }
 
-export async function partialSignForUser(assetName, nftPolicy, metadata, payees, blockfrostKey) {
+export async function partialSignForUser(assetName, recipient, nftPolicy, metadata, payees, blockfrostKey) {
   try {
-    const txBuilder = await createTxBuilder(assetName, nftPolicy, metadata, payees, blockfrostKey);
+    const txBuilder = await createTxBuilder(assetName, recipient, nftPolicy, metadata, payees, blockfrostKey);
     const txComplete = await txBuilder.complete();
     const partialSignedTx = await txComplete.partialSign();
     longToast(`Successfully performed your portion of the mint! An authorized counterparty now needs to sign it...`);
@@ -46,9 +50,9 @@ export async function partialSignForUser(assetName, nftPolicy, metadata, payees,
   }
 }
 
-export async function completePartiallySignedTxn(assetName, nftPolicy, metadata, payees, txnWitnesses, policySKey, blockfrostKey) {
+export async function completePartiallySignedTxn(assetName, recipient, nftPolicy, metadata, payees, txnWitnesses, policySKey, blockfrostKey) {
   try {
-    const txBuilder = await createTxBuilder(assetName, nftPolicy, metadata, payees, blockfrostKey);
+    const txBuilder = await createTxBuilder(assetName, recipient, nftPolicy, metadata, payees, blockfrostKey);
     const txComplete = await txBuilder.complete();
     const txSigned = await txComplete.assemble(txnWitnesses).signWithPrivateKey(policySKey.to_bech32()).complete();
     const txSubmit = await txSigned.submit();
