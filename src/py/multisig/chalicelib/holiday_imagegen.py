@@ -16,7 +16,8 @@ BG_COLORS = {
         'Halloween Orange': (229, 107, 54),
         'Orangy Red': (202, 70, 64),
         'Carmine Pink': (222, 109, 124),
-        'Amethyst Purple': (154, 104, 210)
+        'Amethyst Purple': (154, 104, 210),
+        'Maximum Yellow': (244, 189, 71)
 }
 
 NFT_STORAGE_BASE = 'https://api.nft.storage'
