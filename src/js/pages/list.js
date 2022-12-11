@@ -318,7 +318,7 @@ function getCollectionHeaderDom(collection, floorPrice) {
 function getAssetDom(asset) {
   const assetDom = document.createElement('div');
   assetDom.innerHTML = `
-    <div class="wt-list-card ${asset.type} sqs-col-2" data-id="${asset.id}" data-qty="${asset.quantity}" data-type="${asset.type}" data-listingId="${asset.listingId}">
+    <div class="wt-list-card ${asset.type}" data-id="${asset.id}" data-qty="${asset.quantity}" data-type="${asset.type}" data-listingId="${asset.listingId}">
       <div class="wt-list-image">
         <a href="${NFT_BASE}/${asset.id}" target="_blank">
           <img src="${IPFS_BASE}/${asset.source}" width="100%" loading="lazy" />

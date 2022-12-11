@@ -6,6 +6,8 @@
   border: 1px solid #EAEDF6;
   border-radius: 5px;
   margin: 0px 10px 10px 0px;
+  float: left;
+  max-width: 200px;
 }
 
 .wt-list-info {
@@ -13,8 +15,8 @@
 }
 
 .wt-list-image {
-  height: 200px;
-  width: 200px;
+  max-height: 200px;
+  max-width: 200px;
   border-bottom: 1px solid #EAEDF6;
 }
 
