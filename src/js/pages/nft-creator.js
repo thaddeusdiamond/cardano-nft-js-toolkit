@@ -38,7 +38,7 @@ function toastMintError(error) {
 }
 
 export function enableRecursively(domElement) {
-  if (domElement.disabled) {
+  if (domElement.disabled && !domElement.getAttribute('data-enable-skip')) {
     domElement.disabled = false;
   }
   Array.from(domElement.children).forEach(enableRecursively);
@@ -164,7 +164,7 @@ export async function uploadToIpfs(e, nftStorageDom, fileDom, ipfsDisplayDom) {
   }
 }
 
-export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, useAllScriptsDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numMintsDom) {
+export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slotDom, useAllScriptsDom, scriptSKeyDom, ipfsDisplayDom, fileDom, traitsPrefix, numMintsDom, recipient) {
   e && e.preventDefault();
 
   try {
@@ -219,7 +219,7 @@ export async function performMintTxn(e, blockfrostDom, nameDom, datetimeDom, slo
       return;
     }
 
-    const address = await lucid.wallet.address();
+    const address = (recipient === undefined) ? await lucid.wallet.address() : recipient;
     var txBuilder = lucid.newTx()
                          .attachMintingPolicy(mintingPolicy)
                          .attachMetadata(NftPolicy.METADATA_KEY, chainMetadata)
