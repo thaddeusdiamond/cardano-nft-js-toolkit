@@ -1,0 +1,2 @@
+# Pics we don't want bundled with Chalice due to size limits
+extra_pics/
