@@ -102,7 +102,10 @@
 
       document.getElementById('vote-now').addEventListener('click', async e => {
         e && e.preventDefault();
-        await NftToolkit.Voting.mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotDomName, ballotPrefix, ballotMetadata);
+        const voteChoice = document.querySelector(`input[name=${ballotDomName}]:checked`)?.value;
+        const votingPower = await NftToolkit.Voting.votingAssetsAvailable(blockfrostKey, [policyId], []);
+        const vote = {[voteChoice]: votingPower};
+        await NftToolkit.Voting.mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix, ballotMetadata, vote);
       });
 
       document.getElementById('vote-count').addEventListener('click', async e => {

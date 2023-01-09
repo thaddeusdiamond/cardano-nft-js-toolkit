@@ -122,10 +122,6 @@ function getLucidScript(compiledCode) {
   }
 }
 
-function getBallotSelection(ballotDomName) {
-  return document.querySelector(`input[name=${ballotDomName}]:checked`)?.value;
-}
-
 async function waitForTxn(lucid, blockfrostKey, txHash) {
   for (var attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const result = await fetch(`${lucid.provider.data.url}/txs/${txHash}`, {
@@ -142,8 +138,19 @@ async function waitForTxn(lucid, blockfrostKey, txHash) {
   throw `Could not retrieve voting txn after ${MAX_ATTEMPTS} attempts`;
 }
 
+function calculateCurrentVote(currVoteNum, vote) {
+  var remaining = currVoteNum;
+  for (const voteOption of Object.keys(vote).sort()) {
+    const votesToCast = vote[voteOption];
+    if (remaining <= votesToCast) {
+      return voteOption;
+    }
+    remaining -= votesToCast;
+  }
+  throw 'Illegal internal vote state';
+}
 
-export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotDomName, ballotPrefix, ballotMetadata) {
+export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix, ballotMetadata, vote) {
   try {
     const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before voting using "Connect Wallet" button');
@@ -165,11 +172,6 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
     const voteMintingPolicy = getLucidScript(mintingCompiledCode);
     const voteMintingPolicyId = mintingCompiledCode.mintingPolicyHash.hex;
 
-    const vote = validated(getBallotSelection(ballotDomName), 'Please select your ballot choice!');
-    const voteDatum = {
-      inline: Data.to(Data.fromJson({ voter: voter, vote: vote }))
-    };
-
     const votingAssets = await getVotingAssets([policyId], [], lucid);
     const assetIds = Object.keys(votingAssets.assets);
     var assetIdsChunked = [];
@@ -183,6 +185,7 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
       );
     }
 
+    var currVoteNum = 1;
     for (var i = 0; i < assetIdsChunked.length; i++) {
       var mintAssets = {};
       var lockedAssets = {};
@@ -190,19 +193,24 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
       var ballotNameChars = 0;
       var mintingMetadata = { [voteMintingPolicyId]: {}, version: NftPolicy.CIP0025_VERSION }
       for (const assetId of assetIdsChunked[i]) {
+        var currVote = calculateCurrentVote(currVoteNum, vote);
+        if (!(currVote in lockedAssets)) {
+          lockedAssets[currVote] = {}
+        }
+
         const assetName = assetId.slice(56);
         const ballotNameHex = `${ballotPrefixHex}${assetName}`;
         const ballotName = new TextDecoder().decode(fromHex(ballotNameHex));
         const ballotId = `${voteMintingPolicyId}${ballotNameHex}`;
         mintAssets[ballotId] = SINGLE_NFT;
-        lockedAssets[ballotId] = SINGLE_NFT;
+        lockedAssets[currVote][ballotId] = SINGLE_NFT;
         ballotNameChars += ballotName.length;
         referenceAssets[`${policyId}${assetName}`] = SINGLE_NFT;
         mintingMetadata[voteMintingPolicyId][ballotName] = Object.assign({}, ballotMetadata);
         mintingMetadata[voteMintingPolicyId][ballotName].name = ballotName;
-        mintingMetadata[voteMintingPolicyId][ballotName].vote = vote;
+        mintingMetadata[voteMintingPolicyId][ballotName].vote = currVote;
+        currVoteNum++;
       }
-      lockedAssets[LOVELACE] = RebateCalculator.calculateRebate(1, assetIdsChunked[i].length, ballotNameChars);
 
       const txBuilder = lucid.newTx()
                              .addSigner(voter)
@@ -210,8 +218,17 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
                              .attachMintingPolicy(voteMintingPolicy)
                              .attachMetadata(NftPolicy.METADATA_KEY, mintingMetadata)
                              .payToAddress(voter, referenceAssets)
-                             .payToContract(voteCounter, voteDatum, lockedAssets)
                              .validTo(new Date().getTime() + TEN_MINS);
+
+      for (const voteOption in vote) {
+        if (!(voteOption in lockedAssets)) {
+          continue;
+        }
+        const voteDatum = {
+          inline: Data.to(Data.fromJson({ voter: voter, vote: voteOption }))
+        };
+        txBuilder.payToContract(voteCounter, voteDatum, lockedAssets[voteOption])
+      }
 
       const txComplete = await txBuilder.complete({ nativeUplc: false });
       const txSigned = await txComplete.sign().complete();
