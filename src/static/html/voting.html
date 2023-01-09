@@ -123,7 +123,7 @@
 
       document.getElementById('vote-burn').addEventListener('click', async e => {
         e && e.preventDefault();
-        await NftToolkit.Voting.burnBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix);
+        await NftToolkit.Voting.burnExtraBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix);
       });
 
       window.addEventListener("message", async (event) => {
