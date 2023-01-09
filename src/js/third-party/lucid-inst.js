@@ -14,19 +14,8 @@ const MAINNET = 'mainnet';
 const LUCID_NETWORK_NAMES = [[PREPROD, PREVIEW, TESTNET], [MAINNET]];
 
 export function getLucidInstance(blockfrostKey) {
-  var cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
-  if (!cardanoDApp.isWalletConnected()) {
-    console.log("Cannot initialize Lucid without knowing network and no wallets detected");
-    return;
-  }
-
-  return getNetworkId().then(networkId => {
-    if (!LUCID_NETWORK_NAMES[networkId].includes(blockfrostKey.slice(0, 7))) {
-      return undefined;
-    }
-    var blockfrostParams = getBlockfrostParams(blockfrostKey);
-    return Lucid.new(new Blockfrost(blockfrostParams.api, blockfrostKey), blockfrostParams.network);
-  })
+  const blockfrostParams = getBlockfrostParams(blockfrostKey);
+  return Lucid.new(new Blockfrost(blockfrostParams.api, blockfrostKey), blockfrostParams.network);
 }
 
 export function getNetworkId() {

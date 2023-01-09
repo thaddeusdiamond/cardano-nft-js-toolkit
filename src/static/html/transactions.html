@@ -1,0 +1,78 @@
+<html>
+  <head>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.6/dist/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.2.1/dist/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/cardano-dapp-js@1.0.3/dist/cardano-wallet-picker.css" rel="stylesheet" integrity="sha384-jeqm08LTVeNbS97UWy4EXaCioonM70aAFwSpoQITuPKgc53EI0+XfxoG+0hwMLqj" crossorigin="anonymous" type="text/css">
+
+    <script type="text/javascript" src="nft-toolkit.js"></script>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="col-2">
+          <h4>Blockfrost API Key</h4>
+        </div>
+        <div class="col-10">
+          <input id="blockfrost-api-key" class="col-10" type="text" placeholder="Please get one from https://blockfrost.io"/>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-2">
+          <h4>Wallet Address or Stake Key</h4>
+        </div>
+        <div class="col-10">
+          <input id="wallet-addr" class="col-10" type="text" placeholder="addr1... or stake..."/>
+        </div>
+      </div>
+      <div class="row">
+        <input id="get-transactions" type="submit" value="Retrieve historical transactions" />
+      </div>
+      <div id="transaction-history" class="row">
+      </div>
+    </div>
+  </body>
+
+  <script type="module">
+    NftToolkit.then(NftToolkit => {
+      async function updateTxnOutput(transaction, transactionAmounts, blockfrostApiKey) {
+        const transactionDom = document.createElement('div');
+        const transactionTime = new Date(transaction.block_time * 1000);
+        const netAmounts = await NftToolkit.Transactions.calculateNetAmounts(transactionAmounts, blockfrostApiKey);
+        transactionDom.innerHTML = `
+          <div class="row">
+            <div>
+              <h5>Transaction ${transaction.tx_hash}</h5>
+            </div>
+            <div>
+              <em>${transactionTime.toDateString()} ${transactionTime.toTimeString()}</em>
+            </div>
+            <div>
+              Net Amounts
+              ${JSON.stringify(netAmounts)}
+            </div>
+          </div>
+          `;
+        document.getElementById('transaction-history').appendChild(transactionDom);
+      }
+
+      document.getElementById('get-transactions').addEventListener('click', async e => {
+        e && e.preventDefault();
+        const walletAddr = document.getElementById('wallet-addr').value;
+        const blockfrostApiKey = document.getElementById('blockfrost-api-key').value;
+        document.getElementById('get-transactions').disabled = true;
+        try {
+          await NftToolkit.Transactions.getHistoryOf(walletAddr, blockfrostApiKey, async (transaction, transactionAmounts) => {
+            updateTxnOutput(transaction, transactionAmounts, blockfrostApiKey);
+          });
+        } finally {
+          document.getElementById('get-transactions').disabled = false;
+        }
+      })
+    });
+  </script>
+</html>
