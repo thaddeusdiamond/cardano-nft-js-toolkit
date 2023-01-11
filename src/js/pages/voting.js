@@ -514,8 +514,8 @@ export async function burnExtraBallots(blockfrostKey, pubKeyHash, policyId, poll
 export async function splitUpVotingAssets(blockfrostKey, policyId, maxNftsToMint) {
   try {
     validate(
-      confirm('Nami sometimes has an error with large wallets that results in an error message about minADA.  We can attempt to send all Tangz to yourself (not leaving your wallet) to see if this fixes it.  Should we proceed?'),
-      'Did not agree to send-to-self in Nami'
+      confirm('Wallets sometimes have an error that results in some message about minADA.  We can attempt to send all Tangz to yourself (not leaving your wallet) to see if this fixes it.  Should we proceed?'),
+      'Did not agree to send-to-self in wallet'
     );
 
     const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
@@ -541,7 +541,10 @@ export async function splitUpVotingAssets(blockfrostKey, policyId, maxNftsToMint
 
     for (var i = 0; i < assetIdsChunked.length; i++) {
       var referenceAssets = {};
+      var ballotNameChars = 0;
       for (const assetId of assetIdsChunked[i]) {
+        const ballotName = new TextDecoder().decode(fromHex(assetId.slice(56)));
+        ballotNameChars += ballotName.length;
         referenceAssets[assetId] = SINGLE_NFT;
       }
       referenceAssets[LOVELACE] = RebateCalculator.calculateRebate(1, assetIdsChunked[i].length, ballotNameChars);
