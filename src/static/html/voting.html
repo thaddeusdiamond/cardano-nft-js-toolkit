@@ -88,6 +88,7 @@
       const voteOutputDom = 'vote-count-output';
       const ballotPrefix = 'Vote #1 - ';
       const pubKeyHash = '2d2b94c39535a96f74cedf908b704eda9605c7d4e788a0e9f0a133c7';
+      const maxNftsToMint = 20;
       const ballotMetadata = {
         "image": "ipfs://",
         "mediaType": "image/png",
@@ -105,7 +106,7 @@
         const voteChoice = document.querySelector(`input[name=${ballotDomName}]:checked`)?.value;
         const votingPower = await NftToolkit.Voting.votingAssetsAvailable(blockfrostKey, [policyId], []);
         const vote = {[voteChoice]: votingPower};
-        await NftToolkit.Voting.mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix, ballotMetadata, vote);
+        await NftToolkit.Voting.mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix, ballotMetadata, maxNftsToMint, vote);
       });
 
       document.getElementById('vote-count').addEventListener('click', async e => {
@@ -123,7 +124,7 @@
 
       document.getElementById('vote-burn').addEventListener('click', async e => {
         e && e.preventDefault();
-        await NftToolkit.Voting.burnExtraBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix);
+        await NftToolkit.Voting.burnExtraBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix, maxNftsToMint);
       });
 
       window.addEventListener("message", async (event) => {

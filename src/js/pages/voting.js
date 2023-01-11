@@ -13,7 +13,6 @@ import {validate, validated} from '../nft-toolkit/utils.js';
 
 const BURN_REDEEMER = 'd87a80';
 const LOVELACE = 'lovelace';
-const MAX_NFTS_TO_MINT = 20;
 const MAX_UTXOS_TO_REDEEM = 50;
 const MAX_ATTEMPTS = 12;
 const OPTIMIZE_HELIOS = true;
@@ -150,7 +149,7 @@ function calculateCurrentVote(currVoteNum, vote) {
   throw 'Illegal internal vote state';
 }
 
-export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix, ballotMetadata, vote) {
+export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix, ballotMetadata, maxNftsToMint, vote) {
   try {
     const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before voting using "Connect Wallet" button');
@@ -175,8 +174,8 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
     const votingAssets = await getVotingAssets([policyId], [], lucid);
     const assetIds = Object.keys(votingAssets.assets);
     var assetIdsChunked = [];
-    for (var i = 0; i < assetIds.length; i += MAX_NFTS_TO_MINT) {
-      assetIdsChunked.push(assetIds.slice(i, i + MAX_NFTS_TO_MINT));
+    for (var i = 0; i < assetIds.length; i += maxNftsToMint) {
+      assetIdsChunked.push(assetIds.slice(i, i + maxNftsToMint));
     }
     if (assetIdsChunked.length > 1) {
       validate(
@@ -433,7 +432,7 @@ export async function redeemBallots(blockfrostKey, pubKeyHash, policyId, pollsCl
   }
 }
 
-export async function burnExtraBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix) {
+export async function burnExtraBallots(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix, maxNftsToMint) {
   try {
     const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before burning extra votes using "Connect Wallet" button');
@@ -463,9 +462,9 @@ export async function burnExtraBallots(blockfrostKey, pubKeyHash, policyId, poll
       var foundAsset = false;
       for (const unit in utxo.assets) {
         if (unit.startsWith(mintingPolicyId)) {
-          if (Object.keys(burnAssets).length >= MAX_NFTS_TO_MINT) {
+          if (Object.keys(burnAssets).length >= maxNftsToMint) {
             if (!hasAlerted) {
-              alert(`Can only burn ${MAX_NFTS_TO_MINT} ballots to burn at a time.  Start with that, then click this button again.`);
+              alert(`Can only burn ${maxNftsToMint} ballots to burn at a time.  Start with that, then click this button again.`);
               hasAlerted = true;
             }
             break;
@@ -512,7 +511,7 @@ export async function burnExtraBallots(blockfrostKey, pubKeyHash, policyId, poll
   }
 }
 
-export async function splitUpVotingAssets(blockfrostKey, policyId) {
+export async function splitUpVotingAssets(blockfrostKey, policyId, maxNftsToMint) {
   try {
     validate(
       confirm('Nami sometimes has an error with large wallets that results in an error message about minADA.  We can attempt to send all Tangz to yourself (not leaving your wallet) to see if this fixes it.  Should we proceed?'),
@@ -530,8 +529,8 @@ export async function splitUpVotingAssets(blockfrostKey, policyId) {
     const votingAssets = await getVotingAssets([policyId], [], lucid);
     const assetIds = Object.keys(votingAssets.assets);
     var assetIdsChunked = [];
-    for (var i = 0; i < assetIds.length; i += MAX_NFTS_TO_MINT) {
-      assetIdsChunked.push(assetIds.slice(i, i + MAX_NFTS_TO_MINT));
+    for (var i = 0; i < assetIds.length; i += maxNftsToMint) {
+      assetIdsChunked.push(assetIds.slice(i, i + maxNftsToMint));
     }
     if (assetIdsChunked.length > 1) {
       validate(
