@@ -149,7 +149,7 @@ function calculateCurrentVote(currVoteNum, vote) {
   throw 'Illegal internal vote state';
 }
 
-export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix, ballotMetadata, maxNftsToMint, vote) {
+export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose, ballotPrefix, ballotMetadata, maxNftsToMint, progressFunc, vote) {
   try {
     const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
     validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before voting using "Connect Wallet" button');
@@ -186,6 +186,7 @@ export async function mintBallot(blockfrostKey, pubKeyHash, policyId, pollsClose
 
     var currVoteNum = 1;
     for (var i = 0; i < assetIdsChunked.length; i++) {
+      progressFunc && progressFunc(i + 1, assetIdsChunked.length);
       var mintAssets = {};
       var lockedAssets = {};
       var referenceAssets = {};
