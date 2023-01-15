@@ -66,7 +66,7 @@
         const blockfrostApiKey = document.getElementById('blockfrost-api-key').value;
         document.getElementById('get-transactions').disabled = true;
         try {
-          await NftToolkit.Transactions.getHistoryOf(walletAddr, blockfrostApiKey, async (transaction, transactionAmounts) => {
+          await NftToolkit.Transactions.getHistoryOf(walletAddr, blockfrostApiKey, undefined, undefined, async (transaction, transactionAmounts) => {
             updateTxnOutput(transaction, transactionAmounts, blockfrostApiKey);
           });
         } finally {
