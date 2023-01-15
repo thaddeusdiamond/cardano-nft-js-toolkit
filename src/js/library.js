@@ -15,3 +15,4 @@ export * as VendingMachine from "./pages/vending-machine.js";
 export * as Voting from "./pages/voting.js";
 
 export {NftPolicy} from "./nft-toolkit/nft-policy.js";
+export {Utils} from "./nft-toolkit/utils.js";

@@ -1,3 +1,5 @@
+import {fromHex} from "lucid-cardano";
+
 export function validate(assertion, error) {
   if (!assertion) {
     throw error;
@@ -40,4 +42,10 @@ function createFormElement(type, id, cssClass, placeholder) {
     element.placeholder = placeholder;
   }
   return element;
+}
+
+export class Utils {
+  static assetDisplayName(unit) {
+    return new TextDecoder().decode(fromHex(unit.slice(56)));
+  }
 }
