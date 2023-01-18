@@ -135,9 +135,15 @@ async function updateNetAmountsFor(netAmounts, utxo, modifier, blockfrostApiKey)
 export async function calculateNetAmounts(transactionAmounts, blockfrostApiKey) {
   const netAmounts = {};
   for (const input of transactionAmounts.inputs) {
+    if (input.reference || input.collateral) {
+      continue;
+    }
     await updateNetAmountsFor(netAmounts, input, -1, blockfrostApiKey);
   }
   for (const output of transactionAmounts.outputs) {
+    if (output.collateral) {
+      continue;
+    }
     await updateNetAmountsFor(netAmounts, output, +1, blockfrostApiKey);
   }
   return netAmounts;
