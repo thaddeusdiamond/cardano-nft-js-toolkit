@@ -1,5 +1,6 @@
 import * as CardanoDAppJs from "../third-party/cardano-dapp-js.js";
 import * as LucidInst from "../third-party/lucid-inst.js";
+import * as AdaPrice from "../data/ada_price.js";
 
 import {longToast} from "../third-party/toastify-utils.js";
 import {validate, validated} from "../nft-toolkit/utils.js";
@@ -150,7 +151,7 @@ export async function calculateNetAmounts(transactionAmounts, blockfrostApiKey) 
 }
 
 export async function retrieveDailyHighs(crypto, currency, marketplace) {
-  // TODO: Change this to a proxy server
-  //return await fetch(`https://api.cryptowat.ch/markets/${marketplace}/${crypto}${currency}/ohlc`);
-  return {}
+  validate(crypto === 'ada' && currency === 'usd' && marketplace === 'coinbase', 'Only USD values for historical ADA price supported');
+  return AdaPrice.COINBASE_HISTORICAL_DATA.data;
 }
+
