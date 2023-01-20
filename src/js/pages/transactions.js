@@ -49,6 +49,32 @@ const DOWNLOAD_AUTH_MAP = [
   }
 ]
 
+const MARKETPLACES = [
+  'stake1uxqh9rn76n8nynsnyvf4ulndjv0srcc8jtvumut3989cqmgjt49h6',
+  'addr1w999n67e86jn6xal07pzxtrmqynspgx0fwmcmpua4wc6yzsxpljz3',
+  'addr1w9yr0zr530tp9yzrhly8lw5upddu0eym3yh0mjwa0qlr9pgmkzgv0',
+  'addr1w89s3lfv7gkugker5llecq6x3k2vjvfnvp4692laeqe6w6s93vj3j',
+  'addr1wywukn5q6lxsa5uymffh2esuk8s8fel7a0tna63rdntgrysv0f3ms',
+  'addr1wxx0w0ku3jz8hz5dakg982lh22xx6q7z2z7vh0dt34uzghqrxdhqq',
+  'addr1wx38kptjhuurcag7zdvh5cq98rjxt0ulf6ed7jtmz5gpkfcgjyyx3',
+  'addr1wxz62xuzeujtuuzn2ewkrzwmm2pf79kfc84lrnjsd9ja2jscv3gy0',
+  'addr1wyl5fauf4m4thqze74kvxk8efcj4n7qjx005v33ympj7uwsscprfk'
+];
+
+const TXN_COLUMN_HEADERS = [
+  'transaction hash',
+  'datetime',
+  'unixtime',
+  'type',
+  'stake address',
+  'net amount',
+  'cryptocurrency',
+  'conversion rate',
+  'conversion symbol',
+  'other assets',
+  'total minted'
+]
+
 async function callBlockfrost(endpoint, blockfrostKey) {
   const blockfrostSettings = await LucidInst.getBlockfrostParams(blockfrostKey);
   var mostRecentError = undefined;
@@ -183,7 +209,20 @@ export async function calculateNetAmounts(transactionAmounts, blockfrostApiKey) 
     }
     await updateNetAmountsFor(netAmounts, output, +1, blockfrostApiKey);
   }
-  return netAmounts;
+  return zeroAssetsFiltered(netAmounts);
+}
+
+function zeroAssetsFiltered(assets) {
+  const filteredAssets = {}
+  for (const wallet in assets) {
+    filteredAssets[wallet] = {};
+    const walletAssets = assets[wallet];
+    const nonZeroAssets = Object.keys(walletAssets).filter(asset => (walletAssets[asset] !== 0));
+    for (const asset of nonZeroAssets) {
+      filteredAssets[wallet][asset] = walletAssets[asset];
+    }
+  }
+  return filteredAssets;
 }
 
 export async function retrieveDailyHighs(crypto, currency, marketplace) {
@@ -191,3 +230,70 @@ export async function retrieveDailyHighs(crypto, currency, marketplace) {
   return AdaPrice.COINBASE_HISTORICAL_DATA.data;
 }
 
+export function assetsCreated(netAmounts) {
+  const assetsCreatedRaw = {};
+  for (const netAmount of Object.values(netAmounts)) {
+    for (const unit in netAmount) {
+      if (unit === 'lovelace') {
+        continue;
+      }
+      if (!(unit in assetsCreatedRaw)) {
+        assetsCreatedRaw[unit] = 0;
+      }
+      assetsCreatedRaw[unit] += netAmount[unit];
+    }
+  }
+  return zeroAssetsFiltered({ minted: assetsCreatedRaw }).minted;
+}
+
+export function categorizeTransactionType(netAmounts, userWallet, assetsCreated) {
+  const assetsInvolved = Object.values(netAmounts).map(netAmount => (Object.keys(netAmount).length !== 1)).reduce((acc, val) => acc || val, false);
+  const assetsMinted = (Object.keys(assetsCreated).length !== 0);
+  const userInvolvedInAssets = (Object.keys(netAmounts[userWallet]).length > 1);
+  const marketplacesInvolved = Object.keys(netAmounts).filter(wallet => MARKETPLACES.includes(wallet));
+  const netAdaReceived = netAmounts[userWallet].lovelace > 0;
+  const otherWalletsInvolved = (Object.keys(netAmounts).length > 1);
+  if (assetsMinted) {
+    if (otherWalletsInvolved) {
+      if (userInvolvedInAssets) {
+        return 'Mint Faucet Receipt';
+      } else {
+        return 'Mint To Someone Else';
+      }
+    } else {
+      return 'Mint To Self';
+    }
+  } else if (!assetsInvolved) {
+    if (marketplacesInvolved.length > 0) {
+      if (netAmounts[marketplacesInvolved[0]].lovelace > 0) {
+        return 'Marketplace Offer';
+      } else {
+        return 'Marketplace Offer Withdrawal';
+      }
+    } else if (!otherWalletsInvolved) {
+      return 'Send-To-Self (Possibly Marketplace Update)';
+    } else if (netAdaReceived) {
+      return 'Simple Receiving';
+    } else {
+      return 'Simple Sending';
+    }
+  } else if (marketplacesInvolved.length > 0) {
+    if (netAmounts[marketplacesInvolved[0]].lovelace > 0) {
+      return 'Marketplace Listing';
+    } else if (userInvolvedInAssets) {
+      return 'Marketplace Purchase';
+    } else {
+      return 'Marketplace Sale';
+    }
+  }
+  return 'Unknown';
+}
+
+export async function downloadAsCsv(blockfrostApiKey, csvValues) {
+  try {
+    const lucid = await getAuthorizedLucid(blockfrostApiKey, HISTORY_AUTH_MAP);
+    return `${TXN_COLUMN_HEADERS.join(',')}\n${csvValues.join('\n')}`;
+  } catch (err) {
+    longToast(err);
+  }
+}
