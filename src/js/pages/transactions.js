@@ -17,11 +17,37 @@ const STAKE_PREFIX = 'stake';
 const RETRY_DELAY = 5000;
 const RETRIES = 3;
 
-const AUTHORIZATION_MINS = {
-    "b000e9f3994de3226577b4d61280994e53c07948c8839d628f4a425a" : 3,
-    "33568ad11f93b3e79ae8dee5ad928ded72adcea719e92108caf1521b" : 3,
-    "33566617519280305e147975f80914cea1c93e8049567829f7370fca" : 1
-}
+const HISTORY_AUTH_MAP = [
+  {
+    policies: [
+      "b000e9f3994de3226577b4d61280994e53c07948c8839d628f4a425a",
+      "33568ad11f93b3e79ae8dee5ad928ded72adcea719e92108caf1521b",
+    ],
+    threshold: 10
+  },
+  {
+    policies: [
+      "33566617519280305e147975f80914cea1c93e8049567829f7370fca"
+    ],
+    threshold: 1
+  }
+]
+
+const DOWNLOAD_AUTH_MAP = [
+  {
+    policies: [
+      "b000e9f3994de3226577b4d61280994e53c07948c8839d628f4a425a",
+      "33568ad11f93b3e79ae8dee5ad928ded72adcea719e92108caf1521b",
+    ],
+    threshold: 10
+  },
+  {
+    policies: [
+      "33566617519280305e147975f80914cea1c93e8049567829f7370fca"
+    ],
+    threshold: 1
+  }
+]
 
 async function callBlockfrost(endpoint, blockfrostKey) {
   const blockfrostSettings = await LucidInst.getBlockfrostParams(blockfrostKey);
@@ -88,18 +114,9 @@ async function getBlockFor(unixTime, lucid, blockfrostApiKey) {
 export async function getHistoryOf(walletAddr, blockfrostApiKey, startTime, endTime, txnCallbackFunc) {
   try {
     validate(walletAddr, 'Please enter a wallet handle before clicking "Load"');
-
-    const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
-    validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before retrieving transactions using "Connect Wallet" button');
-
-    const lucid = await LucidInst.getLucidInstance(blockfrostApiKey);
-    validate(lucid, 'Your blockfrost key does not match the network of your wallet.');
-
+    const lucid = await getAuthorizedLucid(blockfrostApiKey, HISTORY_AUTH_MAP);
     const startTimeBlock = OLDEST_BLOCK; //(await getBlockFor(startTime, lucid, blockfrostApiKey)) || OLDEST_BLOCK;
     const endTimeBlock = NEWEST_BLOCK; //(await getBlockFor(endTime, lucid, blockfrostApiKey)) || NEWEST_BLOCK;
-
-    validate(await cardanoDApp.walletMeetsTokenGate(AUTHORIZATION_MINS), 'At least 3 Wild Tangz or 1 Buffoon is required to use this software, please purchase and try again.');
-
     const stakeAddress = validated(await determineAccountOf(walletAddr, blockfrostApiKey), 'Unstaked addresses are currently unsupported');
     const associatedAddresses = await callPaginatedBlockfrost(`accounts/${stakeAddress}/addresses`, '', blockfrostApiKey);
     for await (const address of associatedAddresses) {
@@ -117,6 +134,25 @@ export async function getHistoryOf(walletAddr, blockfrostApiKey, startTime, endT
   } catch (err) {
     longToast(err);
   }
+}
+
+async function getAuthorizedLucid(blockfrostApiKey, authorizationOptions) {
+  const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
+  validate(cardanoDApp.isWalletConnected(), 'Please connect a wallet before retrieving transactions using "Connect Wallet" button');
+
+  const lucid = await LucidInst.getLucidInstance(blockfrostApiKey);
+  validate(lucid, 'Your blockfrost key does not match the network of your wallet.');
+
+  for (const authorizationOption of authorizationOptions) {
+    var totalAssets = 0n;
+    for (const policy of authorizationOption.policies) {
+      totalAssets += await cardanoDApp.numPolicyAssets(policy);
+    }
+    if (totalAssets >= authorizationOption.threshold) {
+      return lucid;
+    }
+  }
+  validate(false, 'You do not have enough Wild Tangz + Clumsy Ghosts required to use this software, please read the docs, purchase and try again.');
 }
 
 async function updateNetAmountsFor(netAmounts, utxo, modifier, blockfrostApiKey) {
