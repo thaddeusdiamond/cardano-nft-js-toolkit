@@ -14,5 +14,5 @@ export * as Transactions from "./pages/transactions.js";
 export * as VendingMachine from "./pages/vending-machine.js";
 export * as Voting from "./pages/voting.js";
 
-export {NftPolicy} from "./nft-toolkit/nft-policy.js";
+export {NftPolicy, METADATA_KEY, CIP0025_VERSION} from "./nft-toolkit/nft-policy.js";
 export {Utils} from "./nft-toolkit/utils.js";

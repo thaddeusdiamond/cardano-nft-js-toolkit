@@ -1,4 +1,4 @@
-import {fromHex} from "lucid-cardano";
+import {fromHex, toHex} from "lucid-cardano";
 
 export function validate(assertion, error) {
   if (!assertion) {
@@ -47,5 +47,13 @@ function createFormElement(type, id, cssClass, placeholder) {
 export class Utils {
   static assetDisplayName(unit) {
     return new TextDecoder().decode(fromHex(unit.slice(56)));
+  }
+
+  static assetHexName(assetName) {
+    return toHex(new TextEncoder().encode(assetName));
+  }
+
+  static toHexStr(byteArray) {
+    return toHex(byteArray);
   }
 }
