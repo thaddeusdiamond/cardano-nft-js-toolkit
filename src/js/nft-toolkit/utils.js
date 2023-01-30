@@ -46,7 +46,7 @@ function createFormElement(type, id, cssClass, placeholder) {
 
 export class Utils {
   static assetDisplayName(unit) {
-    return new TextDecoder().decode(fromHex(unit.slice(56)));
+    return new TextDecoder().decode(Utils.toHexByteArray(unit));
   }
 
   static assetHexName(assetName) {
@@ -55,5 +55,9 @@ export class Utils {
 
   static toHexStr(byteArray) {
     return toHex(byteArray);
+  }
+
+  static toHexByteArray(hexStr) {
+    return fromHex(hexStr.slice(56));
   }
 }

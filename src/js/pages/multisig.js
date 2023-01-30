@@ -3,11 +3,10 @@ import * as LucidInst from "../third-party/lucid-inst.js";
 import * as NftPolicy from "../nft-toolkit/nft-policy.js";
 import * as Secrets from "../secrets.js";
 
-import {toHex} from "lucid-cardano";
+import {C as LCore, toHex} from "lucid-cardano";
 
 import {longToast} from "../third-party/toastify-utils.js";
-import {validate, validated} from "../nft-toolkit/utils.js";
-
+import {Utils, validate, validated} from "../nft-toolkit/utils.js";
 
 export async function instantiatedLucid(blockfrostKey) {
   const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
@@ -62,4 +61,11 @@ export async function completePartiallySignedTxn(assetName, recipient, nftPolicy
     longToast(`An error occurred during policy portion of multi-sig: ${JSON.stringify(err)}`);
     throw err;
   }
+}
+
+export function duplicateTxnWithSecretMetadata(transaction, hexStr) {
+  const metadataHash = LCore.AuxiliaryDataHash.from_hex(hexStr);
+  const bodyClone = transaction.body();
+  bodyClone.set_auxiliary_data_hash(metadataHash);
+  return LCore.Transaction.new(bodyClone, transaction.witness_set(), undefined);
 }
