@@ -71,8 +71,9 @@ const TXN_COLUMN_HEADERS = [
   'cryptocurrency',
   'conversion rate',
   'conversion symbol',
-  'other assets',
-  'total minted'
+  'user assets',
+  'total minted',
+  'assets exchanged'
 ]
 
 async function callBlockfrost(endpoint, blockfrostKey) {
