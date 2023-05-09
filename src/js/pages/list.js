@@ -18,7 +18,7 @@ const PRICE_PER_NFT = 1;
 
 const API_BASE = "https://server.jpgstoreapis.com";
 const COLLECTION_BASE = 'https://jpg.store/collection';
-const IPFS_BASE = 'https://ipfs.jpgstoreapis.com';
+const IMG_BASE = 'https://image-optimizer.jpgstoreapis.com';
 const NFT_BASE = 'https://jpg.store/asset';
 const LIST_NONCE_LEN = 16;
 const LOVELACE_LIST_AMT = 5 * LOVELACE_TO_ADA;
@@ -321,7 +321,7 @@ function getAssetDom(asset) {
     <div class="wt-list-card ${asset.type}" data-id="${asset.id}" data-qty="${asset.quantity}" data-type="${asset.type}" data-listingId="${asset.listingId}">
       <div class="wt-list-image">
         <a href="${NFT_BASE}/${asset.id}" target="_blank">
-          <img src="${IPFS_BASE}/${asset.source}" width="100%" loading="lazy" />
+          <img src="${IMG_BASE}/${asset.source}" width="100%" loading="lazy" />
         </a>
       </div>
       <div class="wt-list-info">
