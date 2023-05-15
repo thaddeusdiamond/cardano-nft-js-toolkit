@@ -213,12 +213,6 @@ export async function processMessageData(message) {
       const lucid = await connectedLucidInst(message.params.blockfrostKey, wallet);
       const buyer = await lucid.wallet.address();
       try {
-        const feeTx = await executeTxn(lucid, message.params.feeTxn);
-        window.postMessage({
-          type: "WT_FEE_COMPLETE",
-          feeTxn: message.params.feeTxn,
-          txHash: feeTx.txHash
-        });
         var currTxn = 0;
         for (const txn of message.params.txns) {
           currTxn++;

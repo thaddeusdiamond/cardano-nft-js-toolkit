@@ -10,7 +10,6 @@ const AUTHORIZATION_MINS = {
   '33568ad11f93b3e79ae8dee5ad928ded72adcea719e92108caf1521b': 4,
   '33566617519280305e147975f80914cea1c93e8049567829f7370fca': 1
 }
-const FEE_ADDR = 'addr1qyqnxg39d5258mhu6739y0c69h38zzzc8q6t2vknlhvssv5xmxx6g6njmjphu2rq7yxhygnygynqga74mnp776jvgsqsmxx684';
 
 const LOVELACE_TO_ADA = 1000000;
 const MIN_LISTING_PRICE = 5;
@@ -255,11 +254,6 @@ export async function performList(blockfrostKey) {
     const sendToSelfTx = await performSendToSelf(blockfrostKey, listings);
     updateProgress(`Successfully split UTxOs.  Now waiting for transaction to register (BE PATIENT this may take several minutes) [txn ${sendToSelfTx}]...`);
     await waitForTxn(blockfrostKey, sendToSelfTx);
-
-    const fee = Math.max((listings.length * PRICE_PER_NFT), 1);
-    updateProgress(`Collecting fee of ${fee}₳ (${PRICE_PER_NFT}₳ per NFT)...`);
-    await performFeeTxn(blockfrostKey, fee);
-    updateProgress(`Collected fee of ${fee}₳ (thank you!)`);
 
     const wallet = await cardanoDAppWallet();
     const lucid = await connectedLucidInst(blockfrostKey, wallet);
