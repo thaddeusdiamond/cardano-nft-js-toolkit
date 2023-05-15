@@ -178,7 +178,7 @@ function validateAssetMetadata(key, metadataVal, metadataFilename) {
 export async function startVending(
   e, outputDom, blockfrostApiKeyDom, expirationDatetimeDom, nftPolicySlotDom,
   useAllScriptsDom, nftPolicyKeyDom, vendingMachineAddrDom, vendingMachineSkeyDom,
-  profitVaultAddrDom, mintPriceDom, singleVendMaxDom, vendRandomlyDom, metadataFilesDom
+  profitVaultAddrDom, mintPriceDom, singleVendMaxDom, vendRandomlyDom, metadataFilesDom, reverseTimelockDom
 ) {
   e && e.preventDefault();
 
@@ -195,8 +195,9 @@ export async function startVending(
     const policySKey = NftPolicy.NftPolicy.privateKeyFromCbor(policySKeyText);
     const policyKeyHash = toHex(policySKey.to_public().hash().to_bytes());
     const useAllScripts = document.querySelector(useAllScriptsDom)?.checked;
+    const reverseTimelock = reverseTimelockDom ? document.querySelector(reverseTimelockDom).checked : false;
 
-    const nftPolicy = new NftPolicy.NftPolicy(policyExpirationSlot, policySKey, policyKeyHash, useAllScripts);
+    const nftPolicy = new NftPolicy.NftPolicy(policyExpirationSlot, policySKey, policyKeyHash, useAllScripts, reverseTimelock);
     const vendingMachine = new VendingMachine(MetadataRef, nftPolicy, blockfrostKey, vendingMachineAddrDom, vendingMachineSkeyDom, profitVaultAddrDom, mintPriceDom, singleVendMaxDom, vendRandomlyDom, metadataFilesDom, outputDom);
 
     await vendingMachine.initialize();
