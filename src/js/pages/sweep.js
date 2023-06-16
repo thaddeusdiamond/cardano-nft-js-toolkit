@@ -184,7 +184,7 @@ export async function processMessageData(message) {
         const cardanoDApp = CardanoDAppJs.getCardanoDAppInstance();
         const isAuthorized = await cardanoDApp.walletMeetsTokenGate(tokenGateMap);
         if (!isAuthorized) {
-          throw `The sweeper currently requires 2 WildTangz NFTs to be used!`;
+          throw `The sweeper currently requires 4 WildTangz NFTs to be used!`;
         }
 
         const wallet = await cardanoDAppWallet();
