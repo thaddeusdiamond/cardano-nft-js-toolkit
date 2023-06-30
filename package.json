@@ -1,7 +1,8 @@
 {
   "name": "cardano-nft-js-toolkit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Javascript tooling for Cardano NFT processes",
+  "main": "js/library.js",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
