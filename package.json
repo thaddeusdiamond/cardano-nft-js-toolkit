@@ -1,6 +1,6 @@
 {
   "name": "cardano-nft-js-toolkit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Javascript tooling for Cardano NFT processes",
   "main": "js/library.js",
   "type": "module",
@@ -13,7 +13,7 @@
   "dependencies": {
     "@hyperionbt/helios": "0.7.1",
     "buffer": "^6.0.3",
-    "cardano-dapp-js": "^1.0.7",
+    "cardano-dapp-js": "^1.0.8",
     "copy-webpack-plugin": "^11.0.0",
     "express": "^4.18.1",
     "lodash": "^4.17.21",

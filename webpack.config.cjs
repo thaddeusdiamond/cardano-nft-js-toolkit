@@ -8,13 +8,15 @@ module.exports = {
 
   experiments: {
     asyncWebAssembly: true,
+    outputModule: true,
     topLevelAwait: true,
     layers: true // optional, with some bundlers/frameworks it doesn't work without
   },
 
   output: {
+    environment: { module: true },
     filename: 'nft-toolkit.js',
-    library: 'NftToolkit'
+    library: { type: 'module' }
   },
 
   plugins: [

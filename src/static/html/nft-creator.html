@@ -8,7 +8,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
     <link href="https://cdn.jsdelivr.net/npm/cardano-dapp-js@1.0.3/dist/cardano-wallet-picker.css" rel="stylesheet" integrity="sha384-jeqm08LTVeNbS97UWy4EXaCioonM70aAFwSpoQITuPKgc53EI0+XfxoG+0hwMLqj" crossorigin="anonymous" type="text/css">
 
-    <script type="text/javascript" src="nft-toolkit.js"></script>
     <link rel="stylesheet" href="nft-creator.css" />
   </head>
 
@@ -102,23 +101,33 @@
     </div>
   </body>
 
-  <script>
-    NftToolkit.then(NftToolkit => {
-      NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container');
+  <script type="module">
+    import * as NftToolkit from "/nft-toolkit.js";
 
-      document.querySelector("#nft-policy-create").addEventListener("click", e => NftToolkit.NftCreator.generatePolicyScriptAndKey(e, '#nft-policy-ack', '#blockfrost-api-key', 'nft-policy-key', 'expiration-datetime', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', '', 'col-4'));
-      document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#nft-creator-form', 'nft-policy-key', 'nft-policy-slot', 'use-all-scripts', '#nft-key-buttons', '#nft-key-display', 'col-4'));
-      document.querySelector('#nft-policy-ack').addEventListener('click', e => NftToolkit.NftCreator.handlePolicyAcknowledgement(e, '#nft-policy-ack', '#nft-creator-form'));
+    NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container', {
+      projectId: NftToolkit.Secrets.WALLET_CONNECT_PROJ,
+      relayerRegion: 'wss://relay.walletconnect.com',
+      metadata: {
+        description: 'Open-source cardano NFT JS toolkit',
+        name: 'cardano-nft-js-toolkit',
+        icons: ['https://www.wildtangz.com/favicon.ico'],
+        url: 'https://github.com/thaddeusdiamond/cardano-nft-js-toolkit'
+      },
+      autoconnect: false
+    });
 
-      document.querySelector("#nft-file-upload").addEventListener("click", e => NftToolkit.NftCreator.uploadToIpfs(e, '#nft-storage-key', '#nft-file-selector', '#nft-ipfs-display'));
+    document.querySelector("#nft-policy-create").addEventListener("click", e => NftToolkit.NftCreator.generatePolicyScriptAndKey(e, '#nft-policy-ack', '#blockfrost-api-key', 'nft-policy-key', 'expiration-datetime', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', '', 'col-4'));
+    document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#nft-creator-form', 'nft-policy-key', 'nft-policy-slot', 'use-all-scripts', '#nft-key-buttons', '#nft-key-display', 'col-4'));
+    document.querySelector('#nft-policy-ack').addEventListener('click', e => NftToolkit.NftCreator.handlePolicyAcknowledgement(e, '#nft-policy-ack', '#nft-creator-form'));
 
-      document.querySelector("#nft-mint-item").addEventListener("click", e => NftToolkit.NftCreator.performMintTxn(e, '#blockfrost-api-key', '#nft-name', '#expiration-datetime', '#nft-policy-slot', '#use-all-scripts', '#nft-policy-key', '#nft-ipfs-display', '#nft-file-selector', 'nft-trait', '#nft-mint-number'));
+    document.querySelector("#nft-file-upload").addEventListener("click", e => NftToolkit.NftCreator.uploadToIpfs(e, '#nft-storage-key', '#nft-file-selector', '#nft-ipfs-display'));
 
-      document.querySelector("#blockfrost-api-key").addEventListener("input", e => NftToolkit.NftPolicy.updateDatetimeSlotSpan(undefined, '#blockfrost-api-key', '#expiration-datetime', '#nft-policy-slot'));
-      window.addEventListener("message", event => {
-        NftToolkit.NftCreator.handleDappJsMessages(event, '#blockfrost-api-key', '#expiration-datetime', '#nft-policy-slot');
-      }, false);
-    })
+    document.querySelector("#nft-mint-item").addEventListener("click", e => NftToolkit.NftCreator.performMintTxn(e, '#blockfrost-api-key', '#nft-name', '#expiration-datetime', '#nft-policy-slot', '#use-all-scripts', '#nft-policy-key', '#nft-ipfs-display', '#nft-file-selector', 'nft-trait', '#nft-mint-number'));
+
+    document.querySelector("#blockfrost-api-key").addEventListener("input", e => NftToolkit.NftPolicy.updateDatetimeSlotSpan(undefined, '#blockfrost-api-key', '#expiration-datetime', '#nft-policy-slot'));
+    window.addEventListener("message", event => {
+      NftToolkit.NftCreator.handleDappJsMessages(event, '#blockfrost-api-key', '#expiration-datetime', '#nft-policy-slot');
+    }, false);
   </script>
 
 </html>

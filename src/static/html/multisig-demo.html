@@ -6,7 +6,6 @@
     <link href="https://cdn.jsdelivr.net/npm/cardano-dapp-js@1.0.5/dist/cardano-wallet-picker.css" rel="stylesheet" integrity="sha384-jeqm08LTVeNbS97UWy4EXaCioonM70aAFwSpoQITuPKgc53EI0+XfxoG+0hwMLqj" crossorigin="anonymous">
     <link href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" rel="stylesheet" integrity="sha384-1txFwJFikBxvmOF4oqBQdSBJQzEUrMDB2MMmedDaFGsjXYStJKO7JkwyAWPDXlkk" crossorigin="anonymous">
 
-    <script type="text/javascript" src="nft-toolkit.js"></script>
     <link rel="stylesheet" href="drop-payment.css" />
   </head>
 
@@ -128,88 +127,97 @@
     </div>
   </body>
 
-  <script>
-    NftToolkit.then(NftToolkit => {
-      const NFT_TRAITS = ['clothing', 'eyes', 'fur', 'mouth', 'headwear'];
-      const NO_PRIVATE_KEY = undefined;
+  <script type="module">
+    import * as NftToolkit from "./nft-toolkit.js";
 
-      NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container');
+    NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container', {
+      projectId: NftToolkit.Secrets.WALLET_CONNECT_PROJ,
+      relayerRegion: 'wss://relay.walletconnect.com',
+      metadata: {
+        description: 'Open-source cardano NFT JS toolkit',
+        name: 'cardano-nft-js-toolkit',
+        icons: ['https://www.wildtangz.com/favicon.ico'],
+        url: 'https://github.com/thaddeusdiamond/cardano-nft-js-toolkit'
+      },
+      autoconnect: false
+    });
 
-      function updatePreview() {
-        const previewDiv = document.getElementById('nft-preview');
-        previewDiv.style.background = `rgb${document.getElementById('nft-background').value}`;
-        NFT_TRAITS.forEach(trait => {
-          const traitSelection = document.getElementById(`nft-${trait}`).value;
-          document.getElementById(`nft-${trait}-img`).src = `${traitSelection}.png`;
-        });
-      }
+    const NFT_TRAITS = ['clothing', 'eyes', 'fur', 'mouth', 'headwear'];
+    const NO_PRIVATE_KEY = undefined;
 
-      document.querySelectorAll('select').forEach(select => {
-        select.addEventListener('change', updatePreview);
+    function updatePreview() {
+      const previewDiv = document.getElementById('nft-preview');
+      previewDiv.style.background = `rgb${document.getElementById('nft-background').value}`;
+      NFT_TRAITS.forEach(trait => {
+        const traitSelection = document.getElementById(`nft-${trait}`).value;
+        document.getElementById(`nft-${trait}-img`).src = `${traitSelection}.png`;
       });
+    }
 
-      updatePreview();
+    document.querySelectorAll('select').forEach(select => {
+      select.addEventListener('change', updatePreview);
+    });
 
-      document.getElementById('mint-user-part').addEventListener('click', async e => {
-        e && e.preventDefault();
+    updatePreview();
 
-        const payeeAddr = document.getElementById('mint-addr').value;
-        const lovelacePay = document.getElementById('mint-price').value * 1000000;
-        const payees = { [payeeAddr]: {lovelace: lovelacePay} }
+    document.getElementById('mint-user-part').addEventListener('click', async e => {
+      e && e.preventDefault();
 
-        const policyKeyHash = document.getElementById('mint-pubkeyhash').value;
-        const expirationSlot = document.getElementById('mint-slot').value;
-        const nftPolicy = new NftToolkit.NftPolicy(expirationSlot, NO_PRIVATE_KEY, policyKeyHash);
+      const payeeAddr = document.getElementById('mint-addr').value;
+      const lovelacePay = document.getElementById('mint-price').value * 1000000;
+      const payees = { [payeeAddr]: {lovelace: lovelacePay} }
 
-        const uuid = (Date.now() + Math.random()).toString(32).replace('.', '').toUpperCase();
-        const assetName = `WildTangz MS${uuid}`;
-        const metadata = {
-          [nftPolicy.policyID]: {
-            [assetName]: {
-              name: assetName
-            }
+      const policyKeyHash = document.getElementById('mint-pubkeyhash').value;
+      const expirationSlot = document.getElementById('mint-slot').value;
+      const nftPolicy = new NftToolkit.NftPolicy(expirationSlot, NO_PRIVATE_KEY, policyKeyHash);
+
+      const uuid = (Date.now() + Math.random()).toString(32).replace('.', '').toUpperCase();
+      const assetName = `WildTangz MS${uuid}`;
+      const metadata = {
+        [nftPolicy.policyID]: {
+          [assetName]: {
+            name: assetName
           }
         }
+      }
 
-        const lucid = await NftToolkit.MultiSig.instantiatedLucid(NftToolkit.Secrets.TEST_BLOCKFROST_PROJ);
-        const userAddress = await lucid.wallet.address();
+      const lucid = await NftToolkit.MultiSig.instantiatedLucid(NftToolkit.Secrets.TEST_BLOCKFROST_PROJ);
+      const userAddress = await lucid.wallet.address();
 
-        const partialSign = await NftToolkit.MultiSig.partialSignForUser(assetName, userAddress, nftPolicy, metadata, payees, NftToolkit.Secrets.TEST_BLOCKFROST_PROJ);
-        document.getElementById('mint-witness-output').textContent = partialSign.witnesses;
+      const partialSign = await NftToolkit.MultiSig.partialSignForUser(assetName, userAddress, nftPolicy, metadata, payees, NftToolkit.Secrets.TEST_BLOCKFROST_PROJ);
+      document.getElementById('mint-witness-output').textContent = partialSign.witnesses;
 
-        document.getElementById('mint-txn-output').textContent = JSON.stringify({
-          assetName: assetName,
-          policyKeyHash: policyKeyHash,
-          expirationSlot: expirationSlot,
-          metadata: metadata,
-          payees: payees
-        });
-
-        document.getElementById('policy-skey').disabled = false;
-      })
-
-      document.getElementById('mint-policy-part').addEventListener('click', async e => {
-        const partialSignTx = JSON.parse(document.getElementById('mint-txn-output').textContent);
-        const partialSignTxWitnesses = [document.getElementById('mint-witness-output').textContent];
-        const policySKeyCbor = document.getElementById('policy-skey').value;
-        const policySKey = NftToolkit.NftPolicy.privateKeyFromCbor(policySKeyCbor);
-
-        const lucid = await NftToolkit.MultiSig.instantiatedLucid(NftToolkit.Secrets.TEST_BLOCKFROST_PROJ);
-        const userAddress = await lucid.wallet.address();
-
-        const nftPolicy = new NftToolkit.NftPolicy(partialSignTx.expirationSlot, NO_PRIVATE_KEY, partialSignTx.policyKeyHash);
-        await NftToolkit.MultiSig.completePartiallySignedTxn(
-          partialSignTx.assetName,
-          userAddress,
-          nftPolicy,
-          partialSignTx.metadata,
-          partialSignTx.payees,
-          partialSignTxWitnesses,
-          policySKey,
-          NftToolkit.Secrets.TEST_BLOCKFROST_PROJ
-        );
+      document.getElementById('mint-txn-output').textContent = JSON.stringify({
+        assetName: assetName,
+        policyKeyHash: policyKeyHash,
+        expirationSlot: expirationSlot,
+        metadata: metadata,
+        payees: payees
       });
 
+      document.getElementById('policy-skey').disabled = false;
+    })
+
+    document.getElementById('mint-policy-part').addEventListener('click', async e => {
+      const partialSignTx = JSON.parse(document.getElementById('mint-txn-output').textContent);
+      const partialSignTxWitnesses = [document.getElementById('mint-witness-output').textContent];
+      const policySKeyCbor = document.getElementById('policy-skey').value;
+      const policySKey = NftToolkit.NftPolicy.privateKeyFromCbor(policySKeyCbor);
+
+      const lucid = await NftToolkit.MultiSig.instantiatedLucid(NftToolkit.Secrets.TEST_BLOCKFROST_PROJ);
+      const userAddress = await lucid.wallet.address();
+
+      const nftPolicy = new NftToolkit.NftPolicy(partialSignTx.expirationSlot, NO_PRIVATE_KEY, partialSignTx.policyKeyHash);
+      await NftToolkit.MultiSig.completePartiallySignedTxn(
+        partialSignTx.assetName,
+        userAddress,
+        nftPolicy,
+        partialSignTx.metadata,
+        partialSignTx.payees,
+        partialSignTxWitnesses,
+        policySKey,
+        NftToolkit.Secrets.TEST_BLOCKFROST_PROJ
+      );
     });
   </script>
 </html>

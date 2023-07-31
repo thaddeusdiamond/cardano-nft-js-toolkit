@@ -7,8 +7,6 @@
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
     <link href="https://cdn.jsdelivr.net/npm/cardano-dapp-js@1.0.3/dist/cardano-wallet-picker.css" rel="stylesheet" integrity="sha384-jeqm08LTVeNbS97UWy4EXaCioonM70aAFwSpoQITuPKgc53EI0+XfxoG+0hwMLqj" crossorigin="anonymous" type="text/css">
-
-    <script type="text/javascript" src="nft-toolkit.js"></script>
   </head>
 
   <body>
@@ -38,41 +36,53 @@
   </body>
 
   <script type="module">
-    NftToolkit.then(NftToolkit => {
-      async function updateTxnOutput(transaction, transactionAmounts, blockfrostApiKey) {
-        const transactionDom = document.createElement('div');
-        const transactionTime = new Date(transaction.block_time * 1000);
-        const netAmounts = await NftToolkit.Transactions.calculateNetAmounts(transactionAmounts, blockfrostApiKey);
-        transactionDom.innerHTML = `
-          <div class="row">
-            <div>
-              <h5>Transaction ${transaction.tx_hash}</h5>
-            </div>
-            <div>
-              <em>${transactionTime.toDateString()} ${transactionTime.toTimeString()}</em>
-            </div>
-            <div>
-              Net Amounts
-              ${JSON.stringify(netAmounts)}
-            </div>
-          </div>
-          `;
-        document.getElementById('transaction-history').appendChild(transactionDom);
-      }
+    import * as NftToolkit from "./nft-toolkit.js";
 
-      document.getElementById('get-transactions').addEventListener('click', async e => {
-        e && e.preventDefault();
-        const walletAddr = document.getElementById('wallet-addr').value;
-        const blockfrostApiKey = document.getElementById('blockfrost-api-key').value;
-        document.getElementById('get-transactions').disabled = true;
-        try {
-          await NftToolkit.Transactions.getHistoryOf(walletAddr, blockfrostApiKey, undefined, undefined, async (transaction, transactionAmounts) => {
-            updateTxnOutput(transaction, transactionAmounts, blockfrostApiKey);
-          });
-        } finally {
-          document.getElementById('get-transactions').disabled = false;
-        }
-      })
+    NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container', {
+      projectId: NftToolkit.Secrets.WALLET_CONNECT_PROJ,
+      relayerRegion: 'wss://relay.walletconnect.com',
+      metadata: {
+        description: 'Open-source cardano NFT JS toolkit',
+        name: 'cardano-nft-js-toolkit',
+        icons: ['https://www.wildtangz.com/favicon.ico'],
+        url: 'https://github.com/thaddeusdiamond/cardano-nft-js-toolkit'
+      },
+      autoconnect: false
     });
+
+    async function updateTxnOutput(transaction, transactionAmounts, blockfrostApiKey) {
+      const transactionDom = document.createElement('div');
+      const transactionTime = new Date(transaction.block_time * 1000);
+      const netAmounts = await NftToolkit.Transactions.calculateNetAmounts(transactionAmounts, blockfrostApiKey);
+      transactionDom.innerHTML = `
+        <div class="row">
+          <div>
+            <h5>Transaction ${transaction.tx_hash}</h5>
+          </div>
+          <div>
+            <em>${transactionTime.toDateString()} ${transactionTime.toTimeString()}</em>
+          </div>
+          <div>
+            Net Amounts
+            ${JSON.stringify(netAmounts)}
+          </div>
+        </div>
+        `;
+      document.getElementById('transaction-history').appendChild(transactionDom);
+    }
+
+    document.getElementById('get-transactions').addEventListener('click', async e => {
+      e && e.preventDefault();
+      const walletAddr = document.getElementById('wallet-addr').value;
+      const blockfrostApiKey = document.getElementById('blockfrost-api-key').value;
+      document.getElementById('get-transactions').disabled = true;
+      try {
+        await NftToolkit.Transactions.getHistoryOf(walletAddr, blockfrostApiKey, undefined, undefined, async (transaction, transactionAmounts) => {
+          updateTxnOutput(transaction, transactionAmounts, blockfrostApiKey);
+        });
+      } finally {
+        document.getElementById('get-transactions').disabled = false;
+      }
+    })
   </script>
 </html>

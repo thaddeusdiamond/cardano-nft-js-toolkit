@@ -7,7 +7,6 @@
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
 
-    <script type="text/javascript" src="nft-toolkit.js"></script>
     <link rel="stylesheet" href="sniper-bot.css" />
   </head>
 
@@ -47,17 +46,29 @@
   </body>
 
   <script type="module">
-    NftToolkit.then(NftToolkit => {
-      document.querySelector('#nft-sniper-submit').addEventListener('click', e => {
-        NftToolkit.SniperBot.configureSniper('#nft-policy-id', '#nft-price', '#nft-trait-name', '#nft-trait-value', '#nft-text-notifications', '#nft-desktop-notifications', '#sniper-cards');
-        return false;
-      });
+    import * as NftToolkit from "./nft-toolkit.js";
 
-      NftToolkit.SniperBot.requestDesktopNotifications();
-      NftToolkit.SniperBot.initializeSnipes();
-      NftToolkit.SniperBot.addExistingSnipesToDom('#sniper-cards', NftToolkit.SniperBot.deleteSnipe);
-      NftToolkit.SniperBot.runSnipeBot();
+    NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container', {
+      projectId: NftToolkit.Secrets.WALLET_CONNECT_PROJ,
+      relayerRegion: 'wss://relay.walletconnect.com',
+      metadata: {
+        description: 'Open-source cardano NFT JS toolkit',
+        name: 'cardano-nft-js-toolkit',
+        icons: ['https://www.wildtangz.com/favicon.ico'],
+        url: 'https://github.com/thaddeusdiamond/cardano-nft-js-toolkit'
+      },
+      autoconnect: false
     });
+
+    document.querySelector('#nft-sniper-submit').addEventListener('click', e => {
+      NftToolkit.SniperBot.configureSniper('#nft-policy-id', '#nft-price', '#nft-trait-name', '#nft-trait-value', '#nft-text-notifications', '#nft-desktop-notifications', '#sniper-cards');
+      return false;
+    });
+
+    NftToolkit.SniperBot.requestDesktopNotifications();
+    NftToolkit.SniperBot.initializeSnipes();
+    NftToolkit.SniperBot.addExistingSnipesToDom('#sniper-cards', NftToolkit.SniperBot.deleteSnipe);
+    NftToolkit.SniperBot.runSnipeBot();
   </script>
 
 </html>

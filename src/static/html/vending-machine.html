@@ -8,7 +8,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
     <link href="https://cdn.jsdelivr.net/npm/cardano-dapp-js@1.0.3/dist/cardano-wallet-picker.css" rel="stylesheet" integrity="sha384-jeqm08LTVeNbS97UWy4EXaCioonM70aAFwSpoQITuPKgc53EI0+XfxoG+0hwMLqj" crossorigin="anonymous" type="text/css">
 
-    <script type="text/javascript" src="nft-toolkit.js"></script>
     <link rel="stylesheet" href="vending-machine.css" />
   </head>
 
@@ -95,52 +94,63 @@
   </body>
 
   <script type="module">
-    NftToolkit.then(NftToolkit => {
-      NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container');
+    import * as NftToolkit from "./nft-toolkit.js";
 
-      document.querySelector("#nft-policy-create").addEventListener("click", e => NftToolkit.NftCreator.generatePolicyScriptAndKey(e, '#nft-policy-ack', '#blockfrost-api-key', 'nft-policy-key', 'expiration-datetime', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', '', 'col-4'));
-      document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#vending-machine-form', 'nft-policy-key', 'nft-policy-slot', 'use-all-scripts', '#nft-key-buttons', '#nft-key-display', 'col-4'));
-      document.querySelector('#nft-policy-ack').addEventListener('click', e => NftToolkit.NftCreator.handlePolicyAcknowledgement(e, '#nft-policy-ack', '#vending-machine-form'));
+    NftToolkit.CardanoDAppJs.initializeCardanoDApp('wallet-container', {
+      projectId: NftToolkit.Secrets.WALLET_CONNECT_PROJ,
+      relayerRegion: 'wss://relay.walletconnect.com',
+      metadata: {
+        description: 'Open-source cardano NFT JS toolkit',
+        name: 'cardano-nft-js-toolkit',
+        icons: ['https://www.wildtangz.com/favicon.ico'],
+        url: 'https://github.com/thaddeusdiamond/cardano-nft-js-toolkit'
+      },
+      autoconnect: false
+    });
 
-      document.querySelector("#vending-machine-create").addEventListener("click", async e => NftToolkit.VendingMachine.generateVmKeyAndAddr(e, '#vending-machine-ack', '#blockfrost-api-key', 'vending-machine-key', 'vending-machine-addr', '#vending-machine-buttons', '#vending-machine-display', ));
-      document.querySelector("#vending-machine-exists").addEventListener("click", e => NftToolkit.VendingMachine.showInputForExistingVm(e, 'vending-machine-key', 'vending-machine-addr', '#vending-machine-buttons', '#vending-machine-display', ''));
-      document.querySelector('#vending-machine-ack').addEventListener('click', e => NftToolkit.VendingMachine.handlePolicyAcknowledgement(e, '#vending-machine-ack'));
+    document.querySelector("#nft-policy-create").addEventListener("click", e => NftToolkit.NftCreator.generatePolicyScriptAndKey(e, '#nft-policy-ack', '#blockfrost-api-key', 'nft-policy-key', 'expiration-datetime', 'nft-policy-slot', '#nft-key-buttons', '#nft-key-display', '', 'col-4'));
+    document.querySelector("#nft-policy-exists").addEventListener("click", e => NftToolkit.NftCreator.showInputForExistingKey(e, '#vending-machine-form', 'nft-policy-key', 'nft-policy-slot', 'use-all-scripts', '#nft-key-buttons', '#nft-key-display', 'col-4'));
+    document.querySelector('#nft-policy-ack').addEventListener('click', e => NftToolkit.NftCreator.handlePolicyAcknowledgement(e, '#nft-policy-ack', '#vending-machine-form'));
 
-      document.querySelector('#nft-files-upload').addEventListener('click', e => {
-        var progressFunc = ((index, total, name) => console.log(`Uploading ${name}`));
-        NftToolkit.VendingMachine.uploadMetadataFiles(e, '#nft-files-selector', '#nft-files-upload', '#blockfrost-api-key')
-      });
+    document.querySelector("#vending-machine-create").addEventListener("click", async e => NftToolkit.VendingMachine.generateVmKeyAndAddr(e, '#vending-machine-ack', '#blockfrost-api-key', 'vending-machine-key', 'vending-machine-addr', '#vending-machine-buttons', '#vending-machine-display', ));
+    document.querySelector("#vending-machine-exists").addEventListener("click", e => NftToolkit.VendingMachine.showInputForExistingVm(e, 'vending-machine-key', 'vending-machine-addr', '#vending-machine-buttons', '#vending-machine-display', ''));
+    document.querySelector('#vending-machine-ack').addEventListener('click', e => NftToolkit.VendingMachine.handlePolicyAcknowledgement(e, '#vending-machine-ack'));
 
-      document.querySelector('#vending-machine-start').addEventListener('click',
-        async e => {
-          document.querySelector('#vending-machine-start').disabled = true;
-          try {
-            await NftToolkit.VendingMachine.startVending(
-              e, '#vending-machine-output', '#blockfrost-api-key', '#expiration-datetime', '#nft-policy-slot', '#use-all-scripts', '#nft-policy-key', '#vending-machine-addr', '#vending-machine-key', '#profit-vault-addr', '#mint-price', '#single-vend-max', '#vend-randomly', '#nft-files-selector'
-            );
+    document.querySelector('#nft-files-upload').addEventListener('click', e => {
+      var progressFunc = ((index, total, name) => console.log(`Uploading ${name}`));
+      NftToolkit.VendingMachine.uploadMetadataFiles(e, '#nft-files-selector', '#nft-files-upload', '#blockfrost-api-key')
+    });
 
-            document.querySelector('#vending-machine-stop').style.display = 'block';
-            document.querySelector('#vending-machine-start').style.display = 'none';
-          } finally {
-            document.querySelector('#vending-machine-start').disabled = false;
-          }
+    document.querySelector('#vending-machine-start').addEventListener('click',
+      async e => {
+        document.querySelector('#vending-machine-start').disabled = true;
+        try {
+          await NftToolkit.VendingMachine.startVending(
+            e, '#vending-machine-output', '#blockfrost-api-key', '#expiration-datetime', '#nft-policy-slot', '#use-all-scripts', '#nft-policy-key', '#vending-machine-addr', '#vending-machine-key', '#profit-vault-addr', '#mint-price', '#single-vend-max', '#vend-randomly', '#nft-files-selector'
+          );
+
+          document.querySelector('#vending-machine-stop').style.display = 'block';
+          document.querySelector('#vending-machine-start').style.display = 'none';
+        } finally {
+          document.querySelector('#vending-machine-start').disabled = false;
         }
-      );
-      document.querySelector('#vending-machine-stop').addEventListener('click',
-        async e => {
-          document.querySelector('#vending-machine-stop').disabled = true;
-          try {
-            var stopped = await NftToolkit.VendingMachine.stopVending(e);
-            if (stopped) {
-              document.querySelector('#vending-machine-stop').style.display = 'none';
-              document.querySelector('#vending-machine-start').style.display = 'block';
-            }
-          } finally {
-            document.querySelector('#vending-machine-stop').disabled = false;
+      }
+    );
+
+    document.querySelector('#vending-machine-stop').addEventListener('click',
+      async e => {
+        document.querySelector('#vending-machine-stop').disabled = true;
+        try {
+          var stopped = await NftToolkit.VendingMachine.stopVending(e);
+          if (stopped) {
+            document.querySelector('#vending-machine-stop').style.display = 'none';
+            document.querySelector('#vending-machine-start').style.display = 'block';
           }
+        } finally {
+          document.querySelector('#vending-machine-stop').disabled = false;
         }
-      );
-    })
+      }
+    );
 
     document.querySelector('#vending-machine-logs').addEventListener('click', e => {
       e && e.preventDefault();
