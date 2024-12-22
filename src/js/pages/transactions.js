@@ -30,20 +30,10 @@ const HISTORY_AUTH_MAP = [
       "33566617519280305e147975f80914cea1c93e8049567829f7370fca"
     ],
     threshold: 1
-  }
-]
-
-const DOWNLOAD_AUTH_MAP = [
-  {
-    policies: [
-      "b000e9f3994de3226577b4d61280994e53c07948c8839d628f4a425a",
-      "33568ad11f93b3e79ae8dee5ad928ded72adcea719e92108caf1521b",
-    ],
-    threshold: 10
   },
   {
     policies: [
-      "33566617519280305e147975f80914cea1c93e8049567829f7370fca"
+      "8dcb1f87d74f3c973e6373aaa24f17ba9369e4af71bdc1973b37b732"
     ],
     threshold: 1
   }

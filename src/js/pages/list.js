@@ -8,7 +8,8 @@ import {shortToast} from "../third-party/toastify-utils.js";
 
 const AUTHORIZATION_MINS = {
   '33568ad11f93b3e79ae8dee5ad928ded72adcea719e92108caf1521b': 4,
-  '33566617519280305e147975f80914cea1c93e8049567829f7370fca': 1
+  '33566617519280305e147975f80914cea1c93e8049567829f7370fca': 1,
+  "8dcb1f87d74f3c973e6373aaa24f17ba9369e4af71bdc1973b37b732": 1
 }
 
 const LOVELACE_TO_ADA = 1000000;
